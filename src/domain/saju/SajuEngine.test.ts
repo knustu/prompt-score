@@ -44,6 +44,9 @@ describe('SajuEngine', () => {
   it('compares two charts only when the compatibility topic has a second input', () => {
     const result = calculateSaju({ ...consented, topic: 'compatibility', compatibility: { birthDate: '2000-01-01', birthTime: '12:00', timeUnknown: false, calendar: 'solar', leapMonth: false, gender: 'unspecified', birthPlace: '서울, 대한민국', timezone: 'Asia/Seoul', daylightSaving: 'auto' } });
     expect(result.compatibility?.otherDayMaster.stem).toBeTruthy();
+    expect(result.compatibility?.primaryGrowthStage.stage).toBeTruthy();
+    expect(result.compatibility?.otherGrowthStage.stage).toBeTruthy();
     expect(result.structuredReadings?.readings.compatibility[0].appliedRuleIds).toContain('compatibility.two-charts');
+    expect(result.structuredReadings?.readings.compatibility[0].appliedRuleIds).toContain('compatibility.twelve-growth');
   });
 });

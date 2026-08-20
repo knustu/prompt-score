@@ -343,9 +343,13 @@ export interface SajuResult {
 }
 
 export interface SajuCompatibilitySummary {
+  primaryDayMaster: { stem: string; element: FiveElement; yinYang: '음' | '양' };
   otherDayMaster: { stem: string; element: FiveElement; yinYang: '음' | '양' };
+  primaryGrowthStage: { branch: string; stage: string };
+  otherGrowthStage: { branch: string; stage: string };
   sharedElements: FiveElement[];
   complementaryElements: FiveElement[];
   relations: SajuRelation[];
+  growthNote: string;
   note: string;
 }

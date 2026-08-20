@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TAROT_CARDS } from './TarotCardData';
-import { drawTarot } from './TarotEngine';
+import { drawTarot, drawTarotCompatibility } from './TarotEngine';
 
 describe('TarotEngine', () => {
   it('contains a standard 78-card deck with structured meanings', () => {
@@ -24,5 +24,12 @@ describe('TarotEngine', () => {
     const item = candidate.cards[0];
     expect(item.interpretation).toContain(item.card.reversedKeywords[0]);
     expect(item.advice).toContain(item.card.warning);
+  });
+
+  it('builds a deterministic three-card relationship spread', () => {
+    const reading = drawTarotCompatibility(123456);
+    expect(reading.cards.map((item) => item.position)).toEqual(['나의 에너지', '상대의 에너지', '관계의 흐름']);
+    expect(reading.categoryLabel).toBe('두 사람 궁합');
+    expect(new Set(reading.cards.map((item) => item.card.id)).size).toBe(3);
   });
 });

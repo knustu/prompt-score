@@ -65,3 +65,16 @@ export const drawTarot = (seed: number, spread: 1 | 3, category: TarotCategory):
     : `${cards.map((item) => item.card.name).join(' · ')}의 흐름입니다. 현재를 관찰하고 장애물을 구분한 뒤 다음 행동을 작게 정해보세요.`;
   return { version: 'tarot-v1', seed: seed >>> 0, spread, category, categoryLabel: TAROT_CATEGORY_LABELS[category], cards, summary, disclaimer: TAROT_DISCLAIMER };
 };
+
+export const drawTarotCompatibility = (seed: number): TarotReading => {
+  // ponytail: one seeded 3-card relationship spread; add richer spreads only if this proves insufficient.
+  const reading = drawTarot(seed, 3, 'love');
+  const positions = ['나의 에너지', '상대의 에너지', '관계의 흐름'];
+  const cards = reading.cards.map((card, index) => ({ ...card, position: positions[index] }));
+  return {
+    ...reading,
+    categoryLabel: '두 사람 궁합',
+    cards,
+    summary: `${cards[0].card.name}은 나의 에너지, ${cards[1].card.name}은 상대의 에너지, ${cards[2].card.name}은 관계의 흐름을 보여주는 참고 카드입니다.`,
+  };
+};

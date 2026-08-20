@@ -34,6 +34,10 @@ const baseLimitations = (input: SajuInput): string[] => [
 const compareCharts = (primary: SajuChart, other: SajuChart): SajuCompatibilitySummary => {
   const sharedElements = (Object.keys(primary.elements) as Array<keyof typeof primary.elements>).filter((element) => primary.elements[element] > 0 && other.elements[element] > 0);
   const complementaryElements = (Object.keys(primary.elements) as Array<keyof typeof primary.elements>).filter((element) => (primary.elements[element] === 0) !== (other.elements[element] === 0));
+  const primaryDayPillar = primary.pillars.find((pillar) => pillar.name === '일주');
+  const otherDayPillar = other.pillars.find((pillar) => pillar.name === '일주');
+  const primaryGrowthStage = { branch: primaryDayPillar?.branch ?? '미상', stage: primaryDayPillar?.growthStage ?? '미상' };
+  const otherGrowthStage = { branch: otherDayPillar?.branch ?? '미상', stage: otherDayPillar?.growthStage ?? '미상' };
   const firstBranches = primary.pillars.filter((pillar) => pillar.known).map((pillar) => pillar.branch);
   const secondBranches = other.pillars.filter((pillar) => pillar.known).map((pillar) => pillar.branch);
   const relations: SajuRelation[] = [];
@@ -41,7 +45,21 @@ const compareCharts = (primary: SajuChart, other: SajuChart): SajuCompatibilityS
   firstBranches.forEach((first) => secondBranches.forEach((second) => entries.forEach(([type, pairs]) => pairs.forEach((pair) => {
     if (pair.length === 2 && pair.includes(first) && pair.includes(second) && first !== second) relations.push({ type, label: `두 차트 ${first}${second} ${type}`, branches: [first, second], ruleId: `compatibility.${type}`, note: '두 사람의 지지 사이 관계표를 대조했습니다.' });
   }))));
-  return { otherDayMaster: { stem: other.dayMaster.stem, element: other.dayMaster.element, yinYang: other.dayMaster.yinYang }, sharedElements, complementaryElements, relations, note: '궁합은 두 차트의 상호작용을 비교하는 참고 자료이며 관계의 우열이나 결과를 결정하지 않습니다.' };
+  // ponytail: compare day-pillar stages only; full synastry needs school-specific rules and verified birth data.
+  const growthNote = primaryGrowthStage.stage === otherGrowthStage.stage
+    ? `두 사람 모두 일주 십이운성이 ${primaryGrowthStage.stage}로, 관계에서 비슷한 속도와 회복 방식을 관찰해볼 수 있습니다.`
+    : `나의 일주 십이운성은 ${primaryGrowthStage.stage}, 상대는 ${otherGrowthStage.stage}로 다릅니다. 관계의 속도·표현·회복 방식이 다를 수 있어 먼저 맞춰볼 질문이 생깁니다.`;
+  return {
+    primaryDayMaster: { stem: primary.dayMaster.stem, element: primary.dayMaster.element, yinYang: primary.dayMaster.yinYang },
+    otherDayMaster: { stem: other.dayMaster.stem, element: other.dayMaster.element, yinYang: other.dayMaster.yinYang },
+    primaryGrowthStage,
+    otherGrowthStage,
+    sharedElements,
+    complementaryElements,
+    relations,
+    growthNote,
+    note: '궁합은 두 차트의 상호작용을 비교하는 참고 자료이며 관계의 우열이나 결과를 결정하지 않습니다.',
+  };
 };
 
 const buildReadings = (chart: SajuChart, input: SajuInput, otherChart?: SajuChart): SajuStructuredReadings => {
@@ -96,7 +114,7 @@ const buildReadings = (chart: SajuChart, input: SajuInput, otherChart?: SajuChar
 
   if (otherChart) {
     const compatibility = compareCharts(chart, otherChart);
-    add('compatibility', item(input, 'compatibility.two-charts', '두 사람의 차트 비교', [`나의 일간 ${chart.dayMaster.stem}(${chart.dayMaster.element})`, `상대 일간 ${compatibility.otherDayMaster.stem}(${compatibility.otherDayMaster.element})`, `공통 오행 ${compatibility.sharedElements.join('·') || '없음'}`, `보완 지점 ${compatibility.complementaryElements.join('·') || '뚜렷하지 않음'}`, `교차 지지 관계 ${compatibility.relations.length}건`], ['compatibility.two-charts'], `${compatibility.note} 공통점은 대화의 기반으로, 차이는 기대치와 경계를 맞추는 질문으로 사용해보세요.`, '함께 계획을 세우거나 중요한 대화를 준비할 때', '낮음', [...limitations, '상대 차트의 음력·시간 정보가 간소화되었을 수 있습니다.'], '누가 더 맞는지보다 각자 원하는 속도·역할·경계를 한 문장씩 합의해보세요.'));
+    add('compatibility', item(input, 'compatibility.two-charts', '십이운성으로 보는 두 사람', [`나의 일간 ${chart.dayMaster.stem}(${chart.dayMaster.element}) · 일주 운성 ${compatibility.primaryGrowthStage.stage}`, `상대 일간 ${compatibility.otherDayMaster.stem}(${compatibility.otherDayMaster.element}) · 일주 운성 ${compatibility.otherGrowthStage.stage}`, `공통 오행 ${compatibility.sharedElements.join('·') || '없음'}`, `보완 지점 ${compatibility.complementaryElements.join('·') || '뚜렷하지 않음'}`, `교차 지지 관계 ${compatibility.relations.length}건`], ['compatibility.two-charts', 'compatibility.twelve-growth'], `${compatibility.growthNote} ${compatibility.note} 공통점은 대화의 기반으로, 차이는 기대치와 경계를 맞추는 질문으로 사용해보세요.`, '함께 계획을 세우거나 중요한 대화를 준비할 때', '낮음', [...limitations, '상대 차트의 음력·시간 정보가 간소화되었을 수 있습니다.'], '누가 더 맞는지보다 각자 원하는 속도·역할·경계를 한 문장씩 합의해보세요.'));
   } else {
     add('compatibility', item(input, 'compatibility.missing', '두 번째 차트 없음', ['궁합용 상대 출생 정보가 입력되지 않음'], ['compatibility.two-charts'], '궁합은 두 사람의 차트를 함께 계산해야 하므로 한 사람의 차트만으로 판단하지 않습니다.', '두 번째 출생 정보를 입력한 뒤 재계산', '높음', ['상대방의 정보와 동의 없이는 해석하지 않습니다.'], '상대의 동의와 정확한 입력을 먼저 확인하세요.'));
   }

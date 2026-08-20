@@ -457,6 +457,18 @@ input:not([type='checkbox']):not([type='radio']), textarea, select, .saju-form i
 .consent-check input { margin-top: 3px; }
 .compatibility-fields { display: grid; gap: 12px; padding: 14px; border-radius: 14px; background: rgba(15, 45, 59, .62); }
 .compatibility-fields h3 { margin: 0; color: var(--cyan-soft); font-size: 14px; }
+.tarot-mode-switch, .tarot-compatibility-hint, .tarot-name-row, .tarot-compatibility-note { grid-column: 1 / -1; }
+.tarot-compatibility-hint, .tarot-compatibility-note { margin: 0; color: #b7afd0; font-size: 11px; line-height: 1.55; }
+.tarot-name-row input { width: 100%; border: 1px solid #514a75; border-radius: 11px; padding: 11px 12px; color: white; background: #312b54; font-size: 13px; }
+.saju-compatibility-card { border-color: rgba(255, 204, 118, .32); background: linear-gradient(145deg, rgba(53, 39, 74, .82), rgba(9, 20, 42, .76)); }
+.compatibility-stage-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 18px; }
+.compatibility-stage-grid > div, .compatibility-meta-grid > div { display: grid; gap: 6px; padding: 14px; border: 1px solid rgba(108, 213, 255, .14); border-radius: 13px; background: rgba(7, 15, 34, .58); }
+.compatibility-stage-grid span, .compatibility-meta-grid span { color: var(--muted); font-size: 10px; }
+.compatibility-stage-grid strong { color: #f2d797; font-size: 24px; }
+.compatibility-stage-grid small { color: #b6ccda; font-size: 10px; }
+.compatibility-growth-note { margin: 14px 0 0; color: #d8ecf5; font-size: 12px; line-height: 1.7; }
+.compatibility-meta-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
+.compatibility-meta-grid strong { color: var(--cyan-soft); font-size: 13px; }
 
 .saju-fact-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; margin-top: 18px; }
 .saju-fact-grid > div { display: grid; gap: 6px; padding: 13px; border-radius: 13px; background: rgba(7, 15, 34, .58); }
@@ -508,6 +520,7 @@ input:not([type='checkbox']):not([type='radio']), textarea, select, .saju-form i
 @media (max-width: 620px) {
   .saju-advanced-pillars { grid-template-columns: repeat(2, 1fr); }
   .saju-indicator-grid { grid-template-columns: 1fr; }
+  .compatibility-stage-grid, .compatibility-meta-grid { grid-template-columns: 1fr; }
   .saju-reading-items summary { align-items: flex-start; flex-direction: column; gap: 5px; }
 }
 
