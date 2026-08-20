@@ -1,0 +1,98 @@
+import type { ChallengeDefinition } from '../types';
+
+export const CHALLENGES: ChallengeDefinition[] = [
+  {
+    id: 'study-plan',
+    title: '학습 계획 만들기',
+    emoji: '📚',
+    description: '목표와 시간을 고려한 현실적인 공부 계획을 요청해보세요.',
+    criteria: ['현재 학업 수준', '과목', '하루 공부 가능 시간', '시험 날짜', '학습 목표', '일정 형식'],
+    requiredSignals: [
+      { id: 'level', label: '현재 학업 수준', terms: ['중학생', '고등학생', '대학생', '학년', '초보', 'beginner', 'student', 'level'], weight: 2 },
+      { id: 'subjects', label: '과목', terms: ['수학', '영어', '국어', '과학', '과목', 'math', 'english', 'subject'], weight: 2 },
+      { id: 'time', label: '공부 가능 시간', terms: ['하루', '시간', '공부 시간', '분량', 'hours', 'study time', 'per day'], weight: 2 },
+      { id: 'date', label: '시험 날짜', terms: ['시험', '날짜', '마감', 'deadline', 'exam', 'date'], weight: 2 },
+      { id: 'goal', label: '학습 목표', terms: ['점수', '합격', '목표', '성적', 'goal', 'score', 'pass'], weight: 2 },
+      { id: 'format', label: '일정 형식', terms: ['표', '캘린더', '주간', '일일', 'schedule', 'calendar', 'table'], weight: 1 },
+    ],
+    optionalSignals: [{ id: 'weakness', label: '취약한 부분', terms: ['취약', '어려운', '약점', 'weakness', 'difficult'], weight: 1 }],
+    strongPrompt: '고등학교 2학년이고 수학·영어를 공부합니다. 6월 20일 모의고사에서 2등급 이상이 목표입니다. 평일 하루 2시간, 주말 4시간을 쓸 수 있습니다. 취약 단원을 먼저 배치한 4주 주간 계획을 표로 만들고, 매주 일요일 점검 항목도 추가해줘.',
+    weakPrompt: '공부 계획 세워줘. 잘 알아서 해줘.',
+  },
+  {
+    id: 'business-idea',
+    title: '사업 아이디어 분석',
+    emoji: '💡',
+    description: '아이디어를 고객·문제·검증 관점에서 구조적으로 분석해보세요.',
+    criteria: ['목표 고객', '해결할 문제', '가치 제안', '시장·경쟁', '제약', '검증 방법'],
+    requiredSignals: [
+      { id: 'customer', label: '목표 고객', terms: ['고객', '사용자', '타깃', 'customer', 'user', 'target'], weight: 2 },
+      { id: 'problem', label: '해결할 문제', terms: ['문제', '불편', 'pain point', 'problem', 'need'], weight: 2 },
+      { id: 'value', label: '가치 제안', terms: ['가치', '차별화', 'benefit', 'value', 'different'], weight: 2 },
+      { id: 'market', label: '시장·경쟁', terms: ['시장', '경쟁', '대안', 'market', 'competitor', 'competition'], weight: 2 },
+      { id: 'constraint', label: '사업 제약', terms: ['예산', '기간', '팀', '제약', 'budget', 'timeline', 'constraint'], weight: 1 },
+      { id: 'validation', label: '검증 방법', terms: ['검증', '인터뷰', '실험', '테스트', 'validation', 'interview', 'test'], weight: 2 },
+    ],
+    optionalSignals: [{ id: 'format', label: '분석 형식', terms: ['표', '우선순위', '점수', 'table', 'priority', 'score'], weight: 1 }],
+    strongPrompt: '20대 1인 가구가 식재료를 자주 남기는 문제를 해결하는 구독 서비스를 분석해줘. 고객의 불편과 기존 대안을 비교하고, 차별화 가설 3개와 2주 안에 할 고객 인터뷰 검증 계획을 표로 정리해줘. 초기 예산은 100만원 이내야.',
+    weakPrompt: '이 사업 아이디어 괜찮은지 분석해줘.',
+  },
+  {
+    id: 'debug-code',
+    title: '프로그래밍 문제 디버깅',
+    emoji: '🛠️',
+    description: '재현 조건과 기대 결과를 포함해 문제 해결을 요청해보세요.',
+    criteria: ['언어·버전', '오류 메시지', '재현 절차', '기대 결과', '실제 결과', '수정 코드'],
+    requiredSignals: [
+      { id: 'language', label: '언어·버전', terms: ['python', 'javascript', 'typescript', 'java', 'react', 'node', '언어', '버전', 'version'], weight: 2 },
+      { id: 'error', label: '오류 메시지', terms: ['오류', '에러', 'error', 'exception', 'traceback', 'message'], weight: 2 },
+      { id: 'reproduce', label: '재현 절차', terms: ['재현', '실행', '단계', '명령', 'reproduce', 'run', 'steps', 'command'], weight: 2 },
+      { id: 'expected', label: '기대·실제 결과', terms: ['기대', '실제', 'expected', 'actual', '결과'], weight: 2 },
+      { id: 'code', label: '관련 코드', terms: ['코드', '함수', 'snippet', 'code', 'function', 'stack'], weight: 2 },
+      { id: 'fix', label: '수정 방식', terms: ['수정', '해결', '패치', 'fix', 'solution', 'patch'], weight: 1 },
+    ],
+    optionalSignals: [{ id: 'environment', label: '실행 환경', terms: ['운영체제', '브라우저', '환경', 'os', 'browser', 'environment'], weight: 1 }],
+    strongPrompt: 'TypeScript 5와 React 19에서 아래 함수가 빈 배열을 반환합니다. `npm test`로 재현되고, 기대 결과는 id가 2인 항목입니다. 실제 오류 메시지와 최소 재현 코드를 기준으로 원인을 설명한 뒤 수정 코드를 보여줘. 마지막에 재발 방지 체크리스트를 추가해줘.',
+    weakPrompt: '이 코드 왜 안 돼? 고쳐줘.',
+  },
+  {
+    id: 'trip-plan',
+    title: '여행 계획 세우기',
+    emoji: '🧳',
+    description: '날짜·예산·취향·이동 조건을 넣어 실행 가능한 일정을 받아보세요.',
+    criteria: ['목적지·기간', '예산', '동행자', '취향', '교통', '일정 형식'],
+    requiredSignals: [
+      { id: 'destination', label: '목적지', terms: ['서울', '부산', '도쿄', '제주', '여행지', 'destination', 'city', 'location'], weight: 2 },
+      { id: 'dates', label: '여행 날짜·기간', terms: ['일', '박', '기간', '날짜', '주말', 'days', 'nights', 'date', 'duration'], weight: 2 },
+      { id: 'budget', label: '예산', terms: ['예산', '만원', '원', 'budget', 'cost', 'krw', 'dollar'], weight: 2 },
+      { id: 'preference', label: '취향·우선순위', terms: ['맛집', '카페', '자연', '박물관', '선호', 'preference', 'food', 'nature', 'museum'], weight: 2 },
+      { id: 'transport', label: '이동 수단', terms: ['교통', '지하철', '버스', '렌터카', 'transport', 'subway', 'car'], weight: 1 },
+      { id: 'format', label: '일정 형식', terms: ['일정표', '표', '동선', 'itinerary', 'schedule', 'table', 'route'], weight: 1 },
+    ],
+    optionalSignals: [{ id: 'companion', label: '동행자', terms: ['혼자', '가족', '아이', '친구', 'solo', 'family', 'children', 'friends'], weight: 1 }],
+    strongPrompt: '9월 12일부터 2박 3일 동안 친구와 부산을 여행합니다. 1인 예산은 30만원이고 대중교통을 이용합니다. 카페와 해변을 좋아하지만 이동을 짧게 하고 싶습니다. 아침·점심·저녁별 일정표와 예상 비용, 우천 시 대안을 표로 정리해줘.',
+    weakPrompt: '부산 여행 일정 짜줘. 좋은 곳 위주로.',
+  },
+  {
+    id: 'marketing-content',
+    title: '마케팅 콘텐츠 작성',
+    emoji: '📣',
+    description: '제품·고객·채널·목표·톤을 지정해 콘텐츠를 만들어보세요.',
+    criteria: ['제품·혜택', '타깃 고객', '채널', '캠페인 목표', '톤', '분량·CTA'],
+    requiredSignals: [
+      { id: 'product', label: '제품·혜택', terms: ['제품', '서비스', '기능', '혜택', 'product', 'service', 'benefit'], weight: 2 },
+      { id: 'customer', label: '타깃 고객', terms: ['고객', '사용자', '타깃', 'customer', 'audience', 'target'], weight: 2 },
+      { id: 'channel', label: '게시 채널', terms: ['인스타', '블로그', '뉴스레터', '광고', 'instagram', 'blog', 'newsletter', 'channel'], weight: 2 },
+      { id: 'goal', label: '캠페인 목표', terms: ['전환', '인지도', '클릭', '구매', '가입', 'conversion', 'awareness', 'click', 'purchase'], weight: 2 },
+      { id: 'tone', label: '톤', terms: ['친근', '전문', '유쾌', '차분', '톤', 'friendly', 'professional', 'playful', 'tone'], weight: 1 },
+      { id: 'length', label: '분량·CTA', terms: ['자', '문장', '해시태그', '링크', 'call to action', 'cta', 'characters', 'hashtags'], weight: 2 },
+    ],
+    optionalSignals: [{ id: 'example', label: '참고 카피', terms: ['예시', '레퍼런스', '샘플', 'example', 'reference', 'sample'], weight: 1 }],
+    strongPrompt: '신규 습관 관리 앱의 인스타그램 출시 게시물을 작성해줘. 20~30대 직장인이 대상이고, 30일 리마인더와 주간 리포트가 핵심 혜택이야. 설치 전환이 목표이며 친근하지만 과장하지 않는 톤으로 120자 이내 본문, CTA 1개, 해시태그 5개를 제시해줘.',
+    weakPrompt: '앱 홍보 글을 멋지게 써줘.',
+  },
+];
+
+export const FREEFORM_CHALLENGE_ID = 'freeform';
+
+export const getChallenge = (id?: string): ChallengeDefinition | undefined => CHALLENGES.find((challenge) => challenge.id === id);
