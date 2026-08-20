@@ -580,3 +580,70 @@ input:not([type='checkbox']):not([type='radio']), textarea, select, .saju-form i
 @media (max-width: 620px) {
   .saju-moon-hero { min-height: 500px; margin-top: -10px; margin-bottom: 34px; padding: 28px 20px; border-radius: 22px; background-position: 57% center; }.saju-moon-copy h1 { font-size: 36px; }.saju-moon-copy p { font-size: 12px; }.saju-hero-console { width: min(260px, 82vw); }.console-stat { left: -10%; }.console-stat-bottom { right: -7%; }.saju-element-dashboard { gap: 18px; }
 }
+
+.element-guidance-list { display: grid; gap: 8px; margin-top: 22px; }
+.element-guidance-list details, .saju-why { border: 1px solid rgba(108, 213, 255, .14); border-radius: 12px; background: rgba(7, 15, 34, .54); }
+.element-guidance-list summary, .saju-why summary { display: flex; justify-content: space-between; gap: 12px; padding: 12px 14px; color: var(--text); cursor: pointer; font-size: 12px; font-weight: 700; }
+.element-guidance-list summary b { color: var(--muted); font: 600 10px 'DM Sans', sans-serif; }
+.element-guidance-list details > div, .saju-why > div { display: grid; gap: 7px; padding: 0 14px 13px; }
+.element-guidance-list p, .saju-why p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.65; }
+.element-guidance-list p strong, .saju-why p strong { display: inline-block; min-width: 63px; color: var(--cyan-soft); }
+
+.saju-persona-card { border-color: rgba(245, 201, 105, .3); background: linear-gradient(145deg, rgba(47, 42, 75, .92), rgba(10, 22, 46, .86)); }
+.persona-lead { max-width: 660px; margin: -7px 0 19px; color: #d2e9f1; font-size: 13px; line-height: 1.7; }
+.persona-points { display: grid; grid-template-columns: .9fr 1.1fr; gap: 12px; }
+.persona-points > div, .persona-columns > div, .persona-example { padding: 14px; border: 1px solid rgba(108, 213, 255, .14); border-radius: 13px; background: rgba(7, 15, 34, .54); }
+.persona-points span, .persona-example > span, .situation-actions span { color: var(--cyan-soft); font-size: 10px; font-weight: 800; }
+.persona-points ul { display: grid; gap: 7px; margin: 10px 0 0; padding: 0; list-style: none; }
+.persona-points li { color: #c4d6e2; font-size: 11px; line-height: 1.6; }
+.persona-points li::before { content: '·'; margin-right: 7px; color: #f2d797; }
+.persona-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 !important; border: 0 !important; background: transparent !important; }
+.persona-example { margin-top: 12px; }
+.persona-example p { margin: 8px 0 0; color: #d0e1ea; font-size: 12px; line-height: 1.7; }
+.saju-persona-card .saju-why { margin-top: 12px; }
+
+.saju-situation-card h2, .saju-question-card h2, .saju-weather-card h2, .saju-feedback h2 { margin-bottom: 15px; }
+.situation-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.situation-tab, .question-chip, .feedback-choice { border: 1px solid rgba(108, 213, 255, .2); border-radius: 999px; color: #b7cad8; background: rgba(7, 15, 34, .62); padding: 9px 12px; font-size: 11px; }
+.situation-tab:hover, .situation-tab.selected, .question-chip:hover, .question-chip.selected, .feedback-choice:hover, .feedback-choice.selected { border-color: rgba(245, 201, 105, .6); color: #fff0bf; background: rgba(96, 70, 83, .72); }
+.situation-body, .question-answer { padding: 18px; border: 1px solid rgba(108, 213, 255, .14); border-radius: 15px; background: rgba(7, 15, 34, .54); }
+.situation-body h3, .question-answer h3 { margin: 7px 0 8px; color: #f2d797; font-size: 17px; }
+.situation-body > p, .question-answer > p { margin: 0; color: #c6d8e3; font-size: 12px; line-height: 1.75; }
+.situation-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin-top: 15px; }
+.situation-actions > div { padding: 11px; border-radius: 11px; background: rgba(24, 44, 72, .62); }
+.situation-actions p { margin: 6px 0 0; color: #c7d8e3; font-size: 11px; line-height: 1.6; }
+.situation-body .saju-why, .question-answer .saju-why { margin-top: 12px; }
+
+.question-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 13px; }
+.question-chip { width: 100%; min-height: 47px; border-radius: 12px; text-align: left; line-height: 1.45; }
+.question-answer h3 { color: #e5eff5; }
+
+.saju-weather-card > .muted { max-width: 700px; font-size: 12px; line-height: 1.65; }
+.weather-timeline { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 17px; }
+.weather-item { display: grid; align-content: start; gap: 9px; min-height: 215px; padding: 14px; border: 1px solid rgba(108, 213, 255, .17); border-radius: 14px; background: linear-gradient(145deg, rgba(16, 46, 68, .72), rgba(8, 20, 43, .72)); }
+.weather-item.mixed { border-color: rgba(245, 201, 105, .3); background: linear-gradient(145deg, rgba(57, 47, 68, .75), rgba(11, 22, 45, .76)); }
+.weather-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; color: #abc8d6; font: 700 10px 'DM Sans', 'Noto Sans KR', sans-serif; }
+.weather-tone { padding: 4px 6px; border-radius: 6px; color: #baf8da; background: rgba(45, 111, 94, .42); font-size: 8px; letter-spacing: .04em; }
+.weather-tone.mixed { color: #ffe4a7; background: rgba(130, 94, 48, .46); }
+.weather-tone.attention { color: #ffc1c1; background: rgba(133, 56, 72, .48); }
+.weather-item h3 { margin: 0; color: #f2d797; font-size: 13px; line-height: 1.45; }
+.weather-item p { margin: 0; color: #c2d5e0; font-size: 11px; line-height: 1.62; }
+.weather-item .weather-suggestion { color: #bce5e3; }
+.weather-item .saju-why { margin-top: auto; }
+
+.saju-feedback { border-color: rgba(108, 213, 255, .2); }
+.saju-feedback > .muted { font-size: 11px; }
+.feedback-choices { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 14px; }
+
+@media (max-width: 860px) {
+  .persona-points, .weather-timeline { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .situation-actions { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 620px) {
+  .persona-points, .persona-columns, .question-grid, .weather-timeline { grid-template-columns: 1fr; }
+  .situation-tabs { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 3px; }
+  .situation-tab { flex: 0 0 auto; }
+  .feedback-choices { display: grid; grid-template-columns: 1fr 1fr; }
+  .feedback-choice { min-height: 42px; }
+}

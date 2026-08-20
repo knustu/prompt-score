@@ -315,6 +315,58 @@ export interface SajuReadingItem {
   sourceReferences?: string[];
 }
 
+export type SajuTone = 'professional' | 'warm' | 'light' | 'practical';
+export type SajuSituationContext = 'work' | 'relationships' | 'family' | 'money' | 'growth';
+export type SajuWeatherTone = 'supportive' | 'mixed' | 'attention';
+
+export interface SajuPersona {
+  title: string;
+  characteristics: string[];
+  strengths: string[];
+  blindSpots: string[];
+  everydayExample: string;
+  evidence: string[];
+  appliedRuleIds: string[];
+  confidence: SajuConfidence;
+}
+
+export interface SajuEverydaySituation {
+  context: SajuSituationContext;
+  label: string;
+  title: string;
+  interpretation: string;
+  everydayExample: string;
+  reflection: string;
+  action: string;
+  evidence: string[];
+  appliedRuleIds: string[];
+  confidence: SajuConfidence;
+}
+
+export interface SajuQuestionPrompt {
+  id: string;
+  question: string;
+  answer: string;
+  evidence: string[];
+  reflectionQuestion: string;
+  action: string;
+  appliedRuleIds: string[];
+  confidence: SajuConfidence;
+}
+
+export interface SajuEnergyWeatherItem {
+  type: '대운' | '세운' | '월운';
+  period: string;
+  pillar: string;
+  element: FiveElement;
+  category: string;
+  tone: SajuWeatherTone;
+  summary: string;
+  suggestion: string;
+  evidence: string;
+  confidence: SajuConfidence;
+}
+
 export interface SajuStructuredReadings {
   summary: string[];
   readings: Record<SajuReadingKey, SajuReadingItem[]>;
@@ -340,6 +392,10 @@ export interface SajuResult {
   backgroundProvided?: boolean;
   selectedTopic?: SajuReadingTopic;
   compatibility?: SajuCompatibilitySummary;
+  persona?: SajuPersona;
+  everydaySituations?: Record<SajuSituationContext, SajuEverydaySituation>;
+  questionPrompts?: SajuQuestionPrompt[];
+  energyWeather?: SajuEnergyWeatherItem[];
 }
 
 export interface SajuCompatibilitySummary {

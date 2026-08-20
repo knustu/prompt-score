@@ -36,4 +36,12 @@ export const ELEMENT_LANGUAGE: Record<FiveElement, { strength: string; gap: stri
   수: { strength: '탐색·정보·유연성의 언어가 두드러질 수 있습니다.', gap: '정보 수집과 실행 시작점을 구분해보세요.', advice: '선택 기준을 먼저 정한 뒤 탐색 시간을 제한해보세요.' },
 };
 
+export const ELEMENT_GUIDANCE: Record<FiveElement, { meaning: string; expression: string; imbalance: string; suggestion: string }> = {
+  목: { meaning: '성장·연결·확장의 상징', expression: '새로운 가능성을 발견하고 관계를 넓히는 방식으로 나타날 수 있습니다.', imbalance: '시작과 아이디어가 많아도 마무리 기준이 흐려질 수 있습니다.', suggestion: '이번 주에 키울 일 하나와 끝낼 일 하나를 따로 적어보세요.' },
+  화: { meaning: '표현·추진·가시화의 상징', expression: '생각을 밖으로 꺼내고 분위기에 활기를 더하는 방식으로 나타날 수 있습니다.', imbalance: '속도와 반응이 빨라 회복 전 멈춤이 짧아질 수 있습니다.', suggestion: '결정이나 대화 전에 짧은 멈춤 시간을 하나 정해두세요.' },
+  토: { meaning: '안정·조율·축적의 상징', expression: '사람과 일을 받쳐주고 과정을 안정시키는 방식으로 나타날 수 있습니다.', imbalance: '익숙한 구조를 지키느라 변화 신호를 늦게 볼 수 있습니다.', suggestion: '지킬 루틴 하나와 실험할 루틴 하나를 나눠보세요.' },
+  금: { meaning: '기준·분류·정리의 상징', expression: '기준을 세우고 복잡한 것을 선명하게 정리하는 방식으로 나타날 수 있습니다.', imbalance: '정확한 기준이 관계의 맥락보다 앞설 수 있습니다.', suggestion: '판단 기준 옆에 상대가 처한 맥락 한 줄도 함께 적어보세요.' },
+  수: { meaning: '탐색·정보·유연성의 상징', expression: '정보를 모으고 상황에 맞게 경로를 바꾸는 방식으로 나타날 수 있습니다.', imbalance: '탐색이 길어지면서 시작 시점을 뒤로 미룰 수 있습니다.', suggestion: '선택 기준을 먼저 정하고 탐색 시간을 제한해보세요.' },
+};
+
 export const SAJU_DISCLAIMER = '사주 결과는 전통 문화를 바탕으로 한 오락·자기 성찰용 참고 자료입니다. 과학적으로 입증된 예측이나 전문적 진단이 아니며, 재정·교육·의료·진로·관계 결정을 위한 유일한 근거로 사용하지 마세요.';

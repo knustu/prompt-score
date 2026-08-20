@@ -109,10 +109,10 @@ export const createSajuResultCard = (result: SajuResult): HTMLCanvasElement => {
   const { canvas, context } = baseCanvas('사주 요약 리딩');
   context.fillStyle = '#ffffff';
   context.font = '800 52px sans-serif';
-  context.fillText('오행의 흐름', 76, 320);
+  context.fillText(result.persona?.title ?? '오행의 흐름', 76, 320);
   context.font = '500 30px sans-serif';
   context.fillStyle = '#d6ccef';
-  context.fillText('간소화된 엔터테인먼트 리딩', 76, 370);
+  canvasText(context, result.persona?.characteristics.slice(0, 2).join(' · ') ?? '간소화된 엔터테인먼트 리딩', 76, 370, 900, 38, 2);
   context.fillStyle = '#ffffff';
   context.font = '600 29px sans-serif';
   Object.entries(result.elements).forEach(([element, score], index) => context.fillText(`${element}  ${score}`, 84, 490 + index * 62));

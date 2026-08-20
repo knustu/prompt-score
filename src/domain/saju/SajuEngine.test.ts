@@ -23,6 +23,10 @@ describe('SajuEngine', () => {
     expect(first.disclaimer).toContain('오락');
     expect(first.chart?.dayMaster.stem).toBeTruthy();
     expect(first.structuredReadings?.readings.familyPatterns[0].limitations.join(' ')).toContain('가족');
+    expect(first.persona?.title).toBeTruthy();
+    expect(first.everydaySituations?.work.action).toBeTruthy();
+    expect(first.questionPrompts).toHaveLength(6);
+    expect(first.energyWeather?.length).toBeGreaterThan(0);
   });
 
   it('uses the simplified solar-term boundary around the year pillar transition', () => {

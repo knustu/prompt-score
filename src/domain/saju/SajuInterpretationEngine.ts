@@ -1,6 +1,6 @@
-import type { SajuChart, SajuCompatibilitySummary, SajuConfidence, SajuInput, SajuReadingItem, SajuReadingKey, SajuRelation, SajuResult, SajuStructuredReadings } from '../types';
+import type { SajuChart, SajuCompatibilitySummary, SajuConfidence, SajuEnergyWeatherItem, SajuEverydaySituation, SajuInput, SajuPersona, SajuQuestionPrompt, SajuReadingItem, SajuReadingKey, SajuRelation, SajuResult, SajuSituationContext, SajuStructuredReadings } from '../types';
 import { ELEMENT_LANGUAGE, SAJU_DISCLAIMER, SAJU_KNOWLEDGE_BASE_VERSION, SAJU_RULES } from './SajuKnowledgeBase';
-import { BRANCH_RELATIONS } from './SajuRuleDefinitions';
+import { BRANCH_RELATIONS, HEAVENLY_STEMS, STEM_ELEMENTS } from './SajuRuleDefinitions';
 
 const TOPICS: SajuReadingKey[] = ['overall', 'personality', 'career', 'money', 'relationships', 'familyPatterns', 'healthLifestyle', 'futureTrends', 'daewoon', 'compatibility', 'question'];
 
@@ -24,6 +24,119 @@ const dominantAndGap = (chart: SajuChart): { dominant: keyof typeof ELEMENT_LANG
 const item = (input: SajuInput, id: string, title: string, facts: string[], appliedRuleIds: string[], interpretation: string, timing: string, confidence: SajuConfidence, limitations: string[], advice: string): SajuReadingItem => ({
   id, title, facts, appliedRuleIds, interpretation, timing, confidence: confidenceFor(input, confidence), limitations, advice,
 });
+
+const dayPillarStage = (chart: SajuChart): { branch: string; stage: string } => {
+  const pillar = chart.pillars.find((item) => item.name === '일주');
+  return { branch: pillar?.branch ?? '미상', stage: pillar?.growthStage ?? '미상' };
+};
+
+const PERSONA_TITLES: Record<keyof typeof ELEMENT_LANGUAGE, string> = {
+  목: '가능성을 키우는 연결자',
+  화: '생각을 밝히는 점화자',
+  토: '흐름을 받치는 조율자',
+  금: '기준을 세우는 편집자',
+  수: '길을 탐색하는 관찰자',
+};
+
+const PERSONA_EXAMPLES: Record<keyof typeof ELEMENT_LANGUAGE, string> = {
+  목: '새로운 일을 맡으면 먼저 사람과 아이디어를 연결하고, 나중에 마감 기준을 세우는 모습으로 나타날 수 있습니다.',
+  화: '회의에서 분위기를 살리고 방향을 빠르게 제안하지만, 혼자 회복할 시간을 뒤늦게 챙기는 모습으로 나타날 수 있습니다.',
+  토: '팀에서 일정과 사람을 안정시키는 역할을 자연스럽게 맡지만, 익숙한 방식이 편해 변화 신호를 천천히 확인할 수 있습니다.',
+  금: '일을 시작하기 전에 기준과 예외를 정리해두면 편안하지만, 상대의 사정까지 확인한 뒤 결론을 내리면 대화가 더 부드러워질 수 있습니다.',
+  수: '정보를 충분히 모은 뒤 움직이려는 편이라 선택의 질은 높아질 수 있지만, 시작 시점을 미리 정해두면 탐색이 길어지는 것을 막을 수 있습니다.',
+};
+
+const buildPersona = (chart: SajuChart, input: SajuInput): SajuPersona => {
+  const { dominant, gap } = dominantAndGap(chart);
+  const stage = dayPillarStage(chart);
+  const gods = visibleTenGods(chart);
+  return {
+    title: PERSONA_TITLES[dominant],
+    characteristics: [
+      `${dominant}(${chart.dayMaster.element}) 중심의 ${ELEMENT_LANGUAGE[dominant].strength.replace(/\.$/u, '')}`,
+      `일간 강약은 ${chart.dayMasterStrength}으로 분류되어 ${chart.dayMasterStrength === '강함' ? '주도권과 실행 공간' : chart.dayMasterStrength === '약함' ? '지지체계와 작은 시작' : '자극과 회복의 균형'}을 의식할 수 있습니다.`,
+      `일주 십이운성은 ${stage.stage}이며, 월령은 ${chart.seasonalInfluence.season}·${chart.seasonalInfluence.element}입니다.`,
+    ],
+    strengths: [
+      `${ELEMENT_LANGUAGE[dominant].strength} 실제 생활에서는 관심과 에너지가 모이는 곳을 빠르게 알아차리는 강점으로 나타날 수 있습니다.`,
+      `${gods.length ? `겉으로 드러난 십신 ${gods.slice(0, 2).join('·')}의 신호를` : '차트의 표면 신호를'} 결과물이나 관계의 기준으로 옮길 때 힘을 발휘할 수 있습니다.`,
+    ],
+    blindSpots: [
+      `${ELEMENT_LANGUAGE[gap].gap} 보완 대상으로 본 ${gap}의 리듬을 의식하면 선택의 폭이 넓어질 수 있습니다.`,
+      '내가 익숙한 속도와 상대가 준비된 속도가 다를 수 있어 중간 확인이 도움이 될 수 있습니다.',
+    ],
+    everydayExample: PERSONA_EXAMPLES[dominant],
+    evidence: [
+      `일간 ${chart.dayMaster.stem}(${chart.dayMaster.element}) · 강약 ${chart.dayMasterStrength}`,
+      `가중 오행 기준 중심 ${dominant} · 보완을 생각할 기운 ${gap}`,
+      `월령 ${chart.pillars[1].branch} · ${chart.seasonalInfluence.season} · 일주 십이운성 ${stage.stage}`,
+      `겉으로 드러난 십신 ${gods.length ? gods.join('·') : '뚜렷한 신호 없음'}`,
+    ],
+    appliedRuleIds: ['balance.day-master', 'seasonal.influence', 'structure.visible-ten-gods'],
+    confidence: confidenceFor(input, '중간'),
+  };
+};
+
+const SITUATION_LABELS: Record<SajuSituationContext, string> = {
+  work: '일과 커리어',
+  relationships: '관계와 소통',
+  family: '가족과 경계',
+  money: '돈과 선택',
+  growth: '개인 성장',
+};
+
+const buildEverydaySituations = (chart: SajuChart, input: SajuInput): Record<SajuSituationContext, SajuEverydaySituation> => {
+  const { dominant, gap } = dominantAndGap(chart);
+  const stage = dayPillarStage(chart);
+  const gods = visibleTenGods(chart);
+  const commonEvidence = [`일간 ${chart.dayMaster.stem}(${chart.dayMaster.element}) · 강약 ${chart.dayMasterStrength}`, `가중 오행 중심 ${dominant} · 보완을 생각할 기운 ${gap}`, `월령 ${chart.seasonalInfluence.season} · 십이운성 ${stage.stage}`];
+  const templates: Record<SajuSituationContext, Omit<SajuEverydaySituation, 'context' | 'label' | 'evidence' | 'confidence'>> = {
+    work: { title: '일할 때의 속도와 구조', interpretation: `${ELEMENT_LANGUAGE[dominant].strength} 업무에서는 ${chart.dayMasterStrength === '강함' ? '내가 방향을 잡고 실행 공간을 확보할 때' : '작은 단위의 목표와 지지받는 구조가 있을 때'} 몰입하기 쉬울 수 있습니다.`, everydayExample: '예: 일을 시작하기 전 “오늘 끝낼 한 가지”를 정하면 넓은 관심을 실제 결과물로 모으는 데 도움이 됩니다.', reflection: '나는 지금 속도보다 구조가 필요한가, 아니면 더 넓은 시야가 필요한가?', action: '오늘 업무에서 결과물 하나의 완료 기준을 한 문장으로 적어보세요.', appliedRuleIds: ['career.output-officer', 'balance.day-master'] },
+    relationships: { title: '관계에서 주고받는 리듬', interpretation: `관계에서는 ${chart.relations.length ? '차트에 표시된 지지 관계를 조율의 질문으로 삼고' : '특정 지지 관계를 단정하지 않고'} ${ELEMENT_LANGUAGE[dominant].advice.toLowerCase()}`, everydayExample: `예: 대화가 꼬일 때 내 의도를 설명하기 전에 상대가 들은 핵심을 한 번 확인해보세요. ${gods.length ? `현재 차트에는 ${gods.slice(0, 2).join('·')} 신호도 보입니다.` : ''}`, reflection: '나는 상대에게 원하는 것을 설명했나, 아니면 알아서 알아주길 기대했나?', action: '중요한 대화에서 사실·바람·경계를 각각 한 문장씩 나눠 말해보세요.', appliedRuleIds: ['relationship.combine-clash', 'balance.day-master'] },
+    family: { title: '가족 안에서 맡기 쉬운 역할', interpretation: '가족 구성원이나 반복 패턴을 차트로 추론하지 않습니다. 다만 내 차트의 속도와 경계 감각을 가족 대화에서 어떻게 경험하는지 관찰할 수 있습니다.', everydayExample: '예: 부탁을 바로 맡거나 반대로 설명 없이 거리를 두기 전에, 내가 할 수 있는 범위와 어려운 범위를 먼저 말해보세요.', reflection: '가족 안에서 내가 자동으로 맡는 역할과 내려놓고 싶은 역할은 무엇인가?', action: '이번 주 가족 대화에서 지킬 수 있는 경계 하나를 짧게 알려보세요.', appliedRuleIds: ['family.explicit-only', 'balance.day-master'] },
+    money: { title: '돈을 다룰 때의 기준', interpretation: `${ELEMENT_LANGUAGE[dominant].strength} 돈과 자원에서는 ${chart.dayMasterStrength === '강함' ? '내가 통제할 수 있는 기준을 세우는 것' : '외부 자료와 함께 작은 결정을 검증하는 것'}이 도움이 될 수 있습니다. 오행은 재정 성과를 예측하지 않습니다.`, everydayExample: '예: 사고 싶은 것과 실제로 필요한 것을 분리해 적으면 감정과 기준을 함께 볼 수 있습니다.', reflection: '이 선택은 지금의 필요인가, 불안을 줄이기 위한 즉흥적 반응인가?', action: '이번 달 고정비·변동비·보류할 지출을 세 줄로 나눠보세요.', appliedRuleIds: ['money.wealth', 'balance.day-master'] },
+    growth: { title: '성장할 때 필요한 리듬', interpretation: `${ELEMENT_LANGUAGE[gap].gap} 현재의 성장 과제는 부족한 면을 몰아붙이는 것이 아니라 ${gap}의 방식을 작은 실험으로 초대하는 데 있을 수 있습니다.`, everydayExample: `예: ${ELEMENT_LANGUAGE[gap].advice}`, reflection: '내 강점을 유지하면서 새로 연습할 수 있는 가장 작은 행동은 무엇인가?', action: '이번 주에 20분만 투자할 실험 하나를 정하고 끝난 뒤 느낌을 기록해보세요.', appliedRuleIds: ['balance.day-master', 'lifestyle.element'] },
+  };
+  return Object.fromEntries((Object.keys(templates) as SajuSituationContext[]).map((context) => [context, { context, label: SITUATION_LABELS[context], evidence: commonEvidence, confidence: confidenceFor(input, '낮음'), ...templates[context] }])) as Record<SajuSituationContext, SajuEverydaySituation>;
+};
+
+const timingEvidence = (chart: SajuChart): { daewoon: string; annual: string } => ({
+  daewoon: chart.daewoon[0] ? `${chart.daewoon[0].startAge}~${chart.daewoon[0].endAge}세 대운 ${chart.daewoon[0].pillar}` : '성별 미지정으로 대운 방향 미계산',
+  annual: chart.annualLuck[0] ? `${chart.annualLuck[0].year}년 ${chart.annualLuck[0].pillar} 세운` : '세운 자료 없음',
+});
+
+const buildQuestionPrompts = (chart: SajuChart, input: SajuInput): SajuQuestionPrompt[] => {
+  const { dominant, gap } = dominantAndGap(chart);
+  const stage = dayPillarStage(chart);
+  const timing = timingEvidence(chart);
+  const relation = chart.relations.length ? chart.relations.map((item) => item.label).join(' · ') : '표시된 지지 관계 없음';
+  const common = [`일간 ${chart.dayMaster.stem}(${chart.dayMaster.element}) · 강약 ${chart.dayMasterStrength}`, `가중 오행 중심 ${dominant} · 보완 ${gap}`, `${timing.daewoon} · ${timing.annual}`];
+  return [
+    { id: 'stuck', question: '왜 요즘 자꾸 막힌 느낌이 들까요?', answer: `${gap} 기운을 보완할 여지가 보이고, ${timing.annual}은 결과를 단정하기보다 우선순위를 다시 보는 시기로 사용할 수 있습니다. 지금의 막힘을 능력 부족으로 해석하기보다, ${ELEMENT_LANGUAGE[gap].advice.toLowerCase()}`, evidence: common, reflectionQuestion: '지금 막힌 일에서 줄여도 되는 선택 하나는 무엇인가요?', action: '오늘 해야 할 일을 하나만 남기고 25분 동안 작게 시작해보세요.', appliedRuleIds: ['balance.day-master', 'timing.annual-monthly'], confidence: confidenceFor(input, '낮음') },
+    { id: 'decision', question: '왜 결정을 내리기가 어려울까요?', answer: `일간 강약 ${chart.dayMasterStrength}과 ${dominant} 중심의 흐름을 보면, 결정을 내리는 방식도 에너지 상태의 영향을 받을 수 있습니다. ${timing.daewoon}을 참고하되 운이 결정을 대신한다고 보지는 않습니다.`, evidence: [...common, `일주 십이운성 ${stage.stage}`], reflectionQuestion: '결정을 미루는 이유는 정보 부족인가요, 손실을 감당할 기준 부족인가요?', action: '결정 기준을 세 개로 제한하고 각 선택지를 한 줄씩만 비교해보세요.', appliedRuleIds: ['balance.day-master', 'timing.daewoon'], confidence: confidenceFor(input, '낮음') },
+    { id: 'environment', question: '어떤 환경에서 실력을 잘 발휘할까요?', answer: `${chart.seasonalInfluence.season}의 월령과 ${dominant} 중심의 오행은 ${chart.dayMasterStrength === '강함' ? '자율성과 결과 기준이 분명한 환경' : '피드백과 지지 구조가 있는 환경'}을 먼저 시험해볼 단서를 줍니다.`, evidence: [`월지 ${chart.pillars[1].branch} · ${chart.seasonalInfluence.season} · ${chart.seasonalInfluence.element}`, ...common.slice(0, 2)], reflectionQuestion: '지금 환경에서 자율성·피드백·회복 중 무엇이 가장 부족한가요?', action: '다음 일주일 동안 몰입이 올라간 조건과 떨어진 조건을 각각 기록해보세요.', appliedRuleIds: ['seasonal.influence', 'balance.day-master'], confidence: confidenceFor(input, '중간') },
+    { id: 'communication', question: '가까운 사람과 어떻게 더 잘 소통할까요?', answer: `${relation}의 지지 관계는 관계의 결과가 아니라 조율해야 할 속도와 기대치의 질문으로 읽습니다. ${ELEMENT_LANGUAGE[dominant].advice}`, evidence: [`관계 관련 지지 관계: ${relation}`, `겉으로 드러난 십신: ${visibleTenGods(chart).join('·') || '뚜렷한 신호 없음'}`, ...common.slice(0, 1)], reflectionQuestion: '내가 전달하고 싶은 사실과 상대에게 바라는 행동을 구분했나요?', action: '다음 대화에서 “내가 관찰한 사실은…, 바라는 것은…” 형식을 한 번 사용해보세요.', appliedRuleIds: ['relationship.combine-clash', 'structure.visible-ten-gods'], confidence: confidenceFor(input, '낮음') },
+    { id: 'focus', question: '이 기간에는 무엇에 집중하면 좋을까요?', answer: `${timing.daewoon}과 ${timing.annual}을 상징적인 시간표로 참고하면, 지금은 ${dominant}의 장점을 넓히되 ${gap}을 보완하는 작은 실험을 배치하기 좋습니다.`, evidence: [...common, `월운 ${chart.monthlyLuck.length}개 절기월 계산`], reflectionQuestion: '이번 기간에 시작할 일·보류할 일·확인할 사람은 각각 누구인가요?', action: '일정에 집중할 한 가지와 보류할 한 가지를 표시해보세요.', appliedRuleIds: ['timing.daewoon', 'timing.annual-monthly'], confidence: confidenceFor(input, '낮음') },
+    { id: 'pattern', question: '내가 조심해서 볼 패턴은 무엇일까요?', answer: `일주 십이운성 ${stage.stage}와 ${dominant} 중심 흐름은 내가 편안하게 반복하는 리듬을 관찰하는 소재가 될 수 있습니다. ${ELEMENT_LANGUAGE[gap].gap}`, evidence: [`일주 십이운성 ${stage.stage}`, `가중 오행 ${dominant} 중심 · ${gap} 보완`, `지지 관계 ${relation}`], reflectionQuestion: '이 패턴은 언제 나를 돕고, 언제 선택지를 좁히나요?', action: '반복되는 장면 하나를 사실·내 해석·다음 선택으로 나눠 적어보세요.', appliedRuleIds: ['balance.day-master', 'lifestyle.element'], confidence: confidenceFor(input, '낮음') },
+  ];
+};
+
+const buildEnergyWeather = (chart: SajuChart, input: SajuInput): SajuEnergyWeatherItem[] => {
+  const { dominant, gap } = dominantAndGap(chart);
+  const records: Array<{ type: SajuEnergyWeatherItem['type']; period: string; pillar: string; element: keyof typeof ELEMENT_LANGUAGE }> = [
+    ...chart.daewoon.slice(0, 1).map((luck) => ({ type: '대운' as const, period: `${luck.startAge}~${luck.endAge}세`, pillar: luck.pillar, element: STEM_ELEMENTS[HEAVENLY_STEMS.indexOf(luck.stem as typeof HEAVENLY_STEMS[number])] })),
+    ...chart.annualLuck.slice(0, 3).map((luck) => ({ type: '세운' as const, period: `${luck.year ?? ''}년`, pillar: luck.pillar, element: luck.element })),
+    ...chart.monthlyLuck.slice(0, 6).map((luck) => ({ type: '월운' as const, period: luck.label, pillar: luck.pillar, element: luck.element })),
+  ];
+  return records.map(({ type, period, pillar, element }) => {
+    const isDominant = element === dominant;
+    const isGap = element === gap;
+    const category = isDominant ? '확장·집중' : isGap ? '회복·균형' : type === '대운' ? '전환·준비' : type === '세운' ? '역할 점검' : '생활 리듬 점검';
+    const tone = isDominant || isGap ? 'supportive' : 'mixed';
+    const summary = isDominant ? `${element} 기운이 차트의 중심과 겹쳐, 이미 가진 강점을 좁은 우선순위에 모아보기 좋은 상징적 구간입니다.` : isGap ? `${element} 기운을 생활에 초대하며 평소와 다른 방식의 회복·정리를 연습해볼 수 있는 구간입니다.` : `${element} 기운이 중심과 보완 사이를 조율하는 구간입니다. 속도를 정하기 전에 실제 반응을 확인해보세요.`;
+    return { type, period, pillar, element, category, tone, summary, suggestion: ELEMENT_LANGUAGE[element].advice, evidence: `${type} ${period} · ${pillar} · 오행 ${element} · 차트 중심 ${dominant} / 보완 ${gap}`, confidence: confidenceFor(input, '낮음') };
+  });
+};
 
 const baseLimitations = (input: SajuInput): string[] => [
   ...(input.timeUnknown ? ['출생 시간이 없어 시주·시주 기반 해석은 제외했습니다.'] : []),
@@ -138,7 +251,7 @@ const buildReadings = (chart: SajuChart, input: SajuInput, otherChart?: SajuChar
   return { summary, readings, timing, uncertainties };
 };
 
-export const interpretSaju = (chart: SajuChart, input: SajuInput, otherChart?: SajuChart): { structuredReadings: SajuStructuredReadings; appliedRules: string[]; knowledgeBaseVersion: string; interpretations: SajuResult['interpretations']; compatibility?: SajuCompatibilitySummary } => {
+export const interpretSaju = (chart: SajuChart, input: SajuInput, otherChart?: SajuChart): { structuredReadings: SajuStructuredReadings; appliedRules: string[]; knowledgeBaseVersion: string; interpretations: SajuResult['interpretations']; compatibility?: SajuCompatibilitySummary; persona: SajuPersona; everydaySituations: Record<SajuSituationContext, SajuEverydaySituation>; questionPrompts: SajuQuestionPrompt[]; energyWeather: SajuEnergyWeatherItem[] } => {
   const built = buildReadings(chart, input, otherChart);
   const structuredReadings: SajuStructuredReadings = { ...built, readings: Object.fromEntries(TOPICS.map((topic) => [topic, built.readings[topic].map((reading) => ({ ...reading, sourceReferences: reading.appliedRuleIds.map((id) => SAJU_RULES.find((rule) => rule.id === id)?.sourceReference).filter((source): source is string => Boolean(source)) }))])) as SajuStructuredReadings['readings'] };
   const appliedRules = [...new Set([...TOPICS.flatMap((topic) => structuredReadings.readings[topic].flatMap((reading) => reading.appliedRuleIds)), ...chart.relations.map((relation) => relation.ruleId), ...chart.indicators.filter((indicator) => indicator.present).map((indicator) => indicator.id)])];
@@ -158,6 +271,10 @@ export const interpretSaju = (chart: SajuChart, input: SajuInput, otherChart?: S
       future: getText('futureTrends'),
     },
     compatibility: otherChart ? compareCharts(chart, otherChart) : undefined,
+    persona: buildPersona(chart, input),
+    everydaySituations: buildEverydaySituations(chart, input),
+    questionPrompts: buildQuestionPrompts(chart, input),
+    energyWeather: buildEnergyWeather(chart, input),
   };
 };
 
@@ -179,4 +296,8 @@ export const buildSajuResult = (input: SajuInput, calculation: { chart: SajuChar
   backgroundProvided: Boolean(input.background.family.trim() || input.background.personal.trim()),
   selectedTopic: input.topic,
   compatibility: interpretation.compatibility,
+  persona: interpretation.persona,
+  everydaySituations: interpretation.everydaySituations,
+  questionPrompts: interpretation.questionPrompts,
+  energyWeather: interpretation.energyWeather,
 });

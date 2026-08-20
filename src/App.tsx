@@ -4,6 +4,7 @@ import { PROMPT_CATEGORIES } from './domain/prompt/PromptRuleDefinitions';
 import { evaluatePrompt, resultFromPromptShareSummary, toPromptShareSummary } from './domain/prompt/PromptEvaluationEngine';
 import { comparePromptSummaries, type PromptComparison } from './domain/comparison/ComparisonEngine';
 import { calculateSaju, defaultSajuInput, validateSajuInput } from './domain/saju/SajuEngine';
+import { ELEMENT_GUIDANCE } from './domain/saju/SajuKnowledgeBase';
 import { ELEMENT_COLORS, ELEMENT_LABELS, ELEMENT_ORDER } from './domain/saju/SajuRuleDefinitions';
 import { createTarotSeed, drawTarot, drawTarotCompatibility, TAROT_CATEGORY_LABELS, TAROT_DISCLAIMER } from './domain/tarot/TarotEngine';
 import { createComparisonCard, createPromptResultCard, createSajuResultCard, createTarotCard, downloadCanvas, shareCanvas } from './domain/card/ResultCardGenerator';
@@ -23,11 +24,17 @@ import type {
   PromptShareSummary,
   SajuInput,
   SajuCompatibilitySummary,
+  SajuEnergyWeatherItem,
+  SajuEverydaySituation,
+  SajuPersona,
+  SajuQuestionPrompt,
   SajuResult,
   SajuReadingItem,
   SajuReadingKey,
   SajuReadingTopic,
   SajuSharePayload,
+  SajuSituationContext,
+  SajuTone,
   TarotCategory,
   TarotReading,
   TarotSharePayload,
@@ -361,6 +368,7 @@ function SajuPage({ navigate, notify }: { navigate: Navigate; notify: Notify }):
   const sharePayload = query.get('share') ? decodeSharePayload(query.get('share') ?? '') : null;
   const [input, setInput] = useState<SajuInput>(defaultSajuInput);
   const [result, setResult] = useState<SajuResult | undefined>(() => readStored<SajuResult>(STORAGE_KEYS.saju));
+  const [tone, setTone] = useState<SajuTone>('professional');
   const [error, setError] = useState('');
   useEffect(() => {
     if (sharePayload?.k === 'saju') setResult(resultFromSajuShare(sharePayload));
@@ -404,6 +412,8 @@ function SajuPage({ navigate, notify }: { navigate: Navigate; notify: Notify }):
             <div className="field-row"><label>출생지<input value={input.birthPlace} onChange={(event) => setInput({ ...input, birthPlace: event.target.value })} placeholder="서울, 대한민국" /></label><label>시간대<input value={input.timezone} onChange={(event) => setInput({ ...input, timezone: event.target.value })} placeholder="Asia/Seoul" /></label></div>
             <label>서머타임<select value={input.daylightSaving} onChange={(event) => setInput({ ...input, daylightSaving: event.target.value as SajuInput['daylightSaving'] })}><option value="auto">시간대 규칙 자동</option><option value="standard">표준시로 고정</option><option value="daylight">서머타임으로 고정</option></select></label>
             <label>읽고 싶은 주제<select value={input.topic} onChange={(event) => setInput({ ...input, topic: event.target.value as SajuReadingTopic })}>{Object.entries(SAJU_TOPIC_LABELS).map(([key, label]) => <option value={key} key={key}>{label}</option>)}</select></label>
+            <label>리딩 톤<select value={tone} onChange={(event) => setTone(event.target.value as SajuTone)}><option value="professional">전문적</option><option value="warm">따뜻하게</option><option value="light">가볍게</option><option value="practical">실용적으로</option></select></label>
+            <p className="field-note">리딩 톤은 계산된 차트와 적용 규칙을 바꾸지 않고 표현 방식만 조정합니다.</p>
             {input.topic === 'compatibility' && input.compatibility && <div className="compatibility-fields"><h3>상대 정보</h3><p className="field-note">상대방의 동의와 정확한 정보를 확인한 뒤 입력해주세요.</p><label>상대 생년월일<input type="date" value={input.compatibility.birthDate} onChange={(event) => setInput({ ...input, compatibility: { ...input.compatibility!, birthDate: event.target.value } })} /></label><div className="field-row"><label>상대 달력<select value={input.compatibility.calendar} onChange={(event) => setInput({ ...input, compatibility: { ...input.compatibility!, calendar: event.target.value as SajuInput['calendar'] } })}><option value="solar">양력</option><option value="lunar">음력</option></select></label><label>상대 시간대<input value={input.compatibility.timezone} onChange={(event) => setInput({ ...input, compatibility: { ...input.compatibility!, timezone: event.target.value } })} placeholder="Asia/Seoul" /></label></div>{input.compatibility.calendar === 'lunar' && <label className="check-label"><input type="checkbox" checked={input.compatibility.leapMonth} onChange={(event) => setInput({ ...input, compatibility: { ...input.compatibility!, leapMonth: event.target.checked } })} /> 상대 윤달로 입력</label>}<div className="field-row"><label>상대 성별<select value={input.compatibility.gender} onChange={(event) => setInput({ ...input, compatibility: { ...input.compatibility!, gender: event.target.value as SajuInput['gender'] } })}><option value="unspecified">선택 안 함</option><option value="female">여성</option><option value="male">남성</option></select></label><label>상대 서머타임<select value={input.compatibility.daylightSaving} onChange={(event) => setInput({ ...input, compatibility: { ...input.compatibility!, daylightSaving: event.target.value as SajuInput['daylightSaving'] } })}><option value="auto">시간대 규칙 자동</option><option value="standard">표준시로 고정</option><option value="daylight">서머타임으로 고정</option></select></label></div><label className="time-label">상대 출생 시간<div className="time-row"><input type="time" value={input.compatibility.birthTime} disabled={input.compatibility.timeUnknown} onChange={(event) => setInput({ ...input, compatibility: { ...input.compatibility!, birthTime: event.target.value } })} /><label className="check-label"><input type="checkbox" checked={input.compatibility.timeUnknown} onChange={(event) => setInput({ ...input, compatibility: { ...input.compatibility!, timeUnknown: event.target.checked } })} /> 시간 모름</label></div></label><label>상대 출생지<input value={input.compatibility.birthPlace} onChange={(event) => setInput({ ...input, compatibility: { ...input.compatibility!, birthPlace: event.target.value } })} placeholder="서울, 대한민국" /></label></div>}
             <label>구체적인 질문(선택)<textarea className="saju-question" value={input.question} onChange={(event) => setInput({ ...input, question: event.target.value })} placeholder="예: 다음 분기에 일하는 방식을 어떻게 점검하면 좋을까요?" /></label>
             <details className="saju-context"><summary>가족·개인 배경 추가(선택)</summary><p className="field-note">직접 적은 내용만 참고합니다. 가족·유전·의료 사실은 차트로 추론하지 않습니다.</p><label>가족 맥락<textarea value={input.background.family} onChange={(event) => setInput({ ...input, background: { ...input.background, family: event.target.value } })} placeholder="직접 경험한 대화, 역할, 거리감 등을 적어주세요." /></label><label>개인 맥락<textarea value={input.background.personal} onChange={(event) => setInput({ ...input, background: { ...input.background, personal: event.target.value } })} placeholder="현재 고민이나 생활 맥락을 적어주세요." /></label></details>
@@ -413,7 +423,7 @@ function SajuPage({ navigate, notify }: { navigate: Navigate; notify: Notify }):
             <Button type="submit">사주 계산하기 <span>→</span></Button>
           </form>
         </SectionCard>
-        <SajuResult result={result} share={share} onCopy={copyShare} onCard={saveCard} />
+        <SajuResult result={result} share={share} onCopy={copyShare} onCard={saveCard} tone={tone} onFeedback={notify} />
       </div>
     </div>
   );
@@ -423,7 +433,7 @@ function resultFromSajuShare(payload: SajuSharePayload): SajuResult {
   return { version: 'saju-v1', inputSummary: '공유된 사주 요약 결과', simplified: true, calendarNote: '공유 링크에는 생년월일·출생 시간·지역을 포함하지 않습니다.', pillars: [], elements: payload.elements, yinYang: payload.yinYang, interpretations: { general: payload.theme, study: '공유된 요약에서는 개인 입력을 다시 계산하지 않습니다.', career: '공유된 요약에서는 개인 입력을 다시 계산하지 않습니다.', money: '공유된 요약에서는 개인 입력을 다시 계산하지 않습니다.', relationship: '공유된 요약에서는 개인 입력을 다시 계산하지 않습니다.', compatibility: '서로 다른 관점을 존중하며 기대치를 맞춰보세요.', reflection: payload.theme, future: '미래를 단정하지 않고 현재의 행동을 관찰해보세요.' }, disclaimer: '사주 결과는 오락과 자기 성찰을 위한 참고용입니다. 재정·교육·의료·진로·관계 결정을 위한 유일한 근거로 사용하지 마세요.' };
 }
 
-function SajuResult({ result, share, onCopy, onCard }: { result?: SajuResult; share: string; onCopy: () => void; onCard: () => void }): ReactElement {
+function SajuResult({ result, share, onCopy, onCard, tone, onFeedback }: { result?: SajuResult; share: string; onCopy: () => void; onCard: () => void; tone: SajuTone; onFeedback: Notify }): ReactElement {
   if (!result) return <EmptyState title="아직 사주 결과가 없어요" text="왼쪽 정보를 입력하면 오행과 성찰 키워드를 확인할 수 있어요." />;
   const maxElement = Math.max(...ELEMENT_ORDER.map((element) => result.elements[element]), 1);
   const tabs: Array<[keyof SajuResult['interpretations'], string]> = [['general', '종합'], ['study', '학습'], ['career', '커리어'], ['money', '금전'], ['relationship', '관계'], ['compatibility', '궁합'], ['reflection', '성찰'], ['future', '앞으로']];
@@ -436,12 +446,18 @@ function SajuResult({ result, share, onCopy, onCard }: { result?: SajuResult; sh
         <div className="element-bars">{ELEMENT_ORDER.map((element) => <div className="element-row" key={element}><span style={{ color: ELEMENT_COLORS[element] }}>{ELEMENT_LABELS[element]}</span><div className="bar-track"><span style={{ width: `${(result.elements[element] / maxElement) * 100}%`, background: ELEMENT_COLORS[element] }} /></div><b>{result.elements[element]}</b></div>)}</div>
       </div>
       <div className="yin-yang"><span>음 {result.yinYang.yin}</span><div><i style={{ width: `${(result.yinYang.yin / Math.max(result.yinYang.yin + result.yinYang.yang, 1)) * 100}%` }} /><b style={{ width: `${(result.yinYang.yang / Math.max(result.yinYang.yin + result.yinYang.yang, 1)) * 100}%` }} /></div><span>양 {result.yinYang.yang}</span></div>
+      <SajuElementGuidance elements={result.elements} maxElement={maxElement} />
       <div className="result-actions compact"><Button secondary onClick={onCopy}>↗ 요약 링크</Button><Button secondary onClick={onCard}>↓ 카드 저장</Button></div>
     </SectionCard>
     {result.compatibility?.primaryGrowthStage && <SajuCompatibilityCard compatibility={result.compatibility} />}
+    {result.persona && <SajuPersonaCard persona={result.persona} result={result} tone={tone} />}
+    {result.everydaySituations && <SajuEverydaySituations situations={result.everydaySituations} result={result} />}
+    {result.questionPrompts && <SajuQuestionPrompts prompts={result.questionPrompts} result={result} />}
+    {result.energyWeather && <SajuEnergyWeather weather={result.energyWeather} result={result} />}
     <SectionCard><div className="card-kicker">FOUR PILLARS</div><h2>사주 네 기둥</h2>{result.pillars.length ? <div className="pillars-table">{result.pillars.map((pillar) => <div className={!pillar.known ? 'pillar-row unknown' : 'pillar-row'} key={pillar.name}><span>{pillar.name}</span><strong>{pillar.known ? `${pillar.stem}${pillar.branch}` : '미상'}</strong><small>{pillar.known ? `${pillar.stemElement} · ${pillar.branchElement} · ${pillar.yinYang}` : '출생 시간 미상'}</small></div>)}</div> : <p className="muted">공유 링크에는 개인 입력을 포함하지 않아 기둥 표를 표시하지 않습니다.</p>}<p className="field-note">{result.calendarNote}</p></SectionCard>
     <SectionCard><div className="card-kicker">REFLECTION MENU</div><h2>카테고리별 리딩</h2><div className="interpretation-grid">{tabs.map(([key, label]) => <article key={key}><span>{label}</span><p>{result.interpretations[key]}</p></article>)}</div></SectionCard>
     {result.chart && result.structuredReadings && <SajuAdvancedResult result={result} />}
+    {result.persona && <SajuFeedback onFeedback={onFeedback} />}
     <div className="notice warm-notice">☼ {result.disclaimer}</div>
   </div>;
 }
@@ -459,6 +475,52 @@ function SajuCompatibilityCard({ compatibility }: { compatibility: SajuCompatibi
     <div className="compatibility-meta-grid"><div><span>공통 오행</span><strong>{compatibility.sharedElements.join(' · ') || '없음'}</strong></div><div><span>보완 포인트</span><strong>{compatibility.complementaryElements.join(' · ') || '뚜렷하지 않음'}</strong></div><div><span>교차 지지 관계</span><strong>{compatibility.relations.length}건</strong></div></div>
     <p className="field-note">{compatibility.note}</p>
   </SectionCard>;
+}
+
+const SAJU_TONE_LEADS: Record<SajuTone, string> = {
+  professional: '차트 근거와 적용 규칙을 먼저 확인한 뒤, 생활 장면에 연결해보세요.',
+  warm: '지금의 나를 다그치기보다, 이미 가진 리듬과 필요한 휴식을 함께 살펴보세요.',
+  light: '정답 찾기보다 “아, 이런 장면이 있지” 싶은 단서를 가볍게 골라보세요.',
+  practical: '오늘 관찰할 장면 하나와 바로 해볼 행동 하나만 남겨보세요.',
+};
+
+function SajuWhyDetails({ evidence, appliedRuleIds, confidence, result }: { evidence: string[]; appliedRuleIds?: string[]; confidence: string; result: SajuResult }): ReactElement {
+  return <details className="saju-why"><summary>왜 이렇게 읽었을까요?</summary><div><p><strong>차트 근거</strong>{evidence.join(' · ')}</p><p><strong>적용 규칙</strong>{appliedRuleIds?.join(' · ') || result.appliedRules?.slice(0, 3).join(' · ') || '공유 요약에는 없음'}</p><p><strong>신뢰도</strong>{confidence}</p><p><strong>계산 방법</strong>{result.calculationMethod?.id ?? '공유 요약에서는 다시 계산하지 않음'} · {result.knowledgeBaseVersion ?? 'legacy'}</p></div></details>;
+}
+
+function SajuElementGuidance({ elements, maxElement }: { elements: SajuResult['elements']; maxElement: number }): ReactElement {
+  return <div className="element-guidance-list"><div className="card-kicker">ELEMENT GUIDANCE</div>{ELEMENT_ORDER.map((element) => <details key={element}><summary><span style={{ color: ELEMENT_COLORS[element] }}>{ELEMENT_LABELS[element]}</span><b>{elements[element]} · {Math.round((elements[element] / maxElement) * 100)}%</b></summary><div><p><strong>상징</strong>{ELEMENT_GUIDANCE[element].meaning}</p><p><strong>표현</strong>{ELEMENT_GUIDANCE[element].expression}</p><p><strong>균형 질문</strong>{ELEMENT_GUIDANCE[element].imbalance}</p><p><strong>작은 제안</strong>{ELEMENT_GUIDANCE[element].suggestion}</p></div></details>)}</div>;
+}
+
+function SajuPersonaCard({ persona, result, tone }: { persona: SajuPersona; result: SajuResult; tone: SajuTone }): ReactElement {
+  return <SectionCard className="saju-persona-card"><div className="card-kicker">PERSONALIZED SAJU PERSONA</div><h2>{persona.title}</h2><p className="persona-lead">{SAJU_TONE_LEADS[tone]}</p><div className="persona-points"><div><span>이런 리듬이 보일 수 있어요</span><ul>{persona.characteristics.map((item) => <li key={item}>{item}</li>)}</ul></div><div className="persona-columns"><div><span>강점</span><ul>{persona.strengths.map((item) => <li key={item}>{item}</li>)}</ul></div><div><span>살펴볼 점</span><ul>{persona.blindSpots.map((item) => <li key={item}>{item}</li>)}</ul></div></div></div><div className="persona-example"><span>일상에서 이렇게 나타날 수 있어요</span><p>{persona.everydayExample}</p></div><SajuWhyDetails evidence={persona.evidence} appliedRuleIds={persona.appliedRuleIds} confidence={persona.confidence} result={result} /></SectionCard>;
+}
+
+function SajuEverydaySituations({ situations, result }: { situations: Record<SajuSituationContext, SajuEverydaySituation>; result: SajuResult }): ReactElement {
+  const contexts = Object.keys(situations) as SajuSituationContext[];
+  const [selected, setSelected] = useState<SajuSituationContext>('work');
+  const current = situations[selected] ?? situations[contexts[0]];
+  if (!current) return <></>;
+  return <SectionCard className="saju-situation-card"><div className="card-kicker">EVERYDAY SITUATIONS</div><h2>이런 장면에서 와닿을 수 있어요</h2><div className="situation-tabs" role="tablist" aria-label="일상 상황 선택">{contexts.map((context) => <button type="button" role="tab" aria-selected={selected === context} className={selected === context ? 'situation-tab selected' : 'situation-tab'} key={context} onClick={() => setSelected(context)}>{situations[context].label}</button>)}</div><div className="situation-body"><span className="eyebrow">{current.label}</span><h3>{current.title}</h3><p>{current.interpretation}</p><div className="situation-actions"><div><span>예시</span><p>{current.everydayExample}</p></div><div><span>돌아볼 질문</span><p>{current.reflection}</p></div><div><span>오늘의 행동</span><p>{current.action}</p></div></div><SajuWhyDetails evidence={current.evidence} appliedRuleIds={current.appliedRuleIds} confidence={current.confidence} result={result} /></div></SectionCard>;
+}
+
+function SajuQuestionPrompts({ prompts, result }: { prompts: SajuQuestionPrompt[]; result: SajuResult }): ReactElement {
+  const [selectedId, setSelectedId] = useState(prompts[0]?.id ?? '');
+  const current = prompts.find((prompt) => prompt.id === selectedId) ?? prompts[0];
+  if (!current) return <></>;
+  return <SectionCard className="saju-question-card"><div className="card-kicker">ASK ABOUT YOUR CURRENT SITUATION</div><h2>지금의 고민을 골라보세요</h2><div className="question-grid">{prompts.map((prompt) => <button type="button" className={prompt.id === current.id ? 'question-chip selected' : 'question-chip'} key={prompt.id} onClick={() => setSelectedId(prompt.id)}>{prompt.question}</button>)}</div><div className="question-answer"><h3>{current.question}</h3><p>{current.answer}</p><div className="situation-actions"><div><span>생각해볼 질문</span><p>{current.reflectionQuestion}</p></div><div><span>작은 행동</span><p>{current.action}</p></div></div><SajuWhyDetails evidence={current.evidence} appliedRuleIds={current.appliedRuleIds} confidence={current.confidence} result={result} /></div></SectionCard>;
+}
+
+const WEATHER_TONE_LABELS: Record<SajuEnergyWeatherItem['tone'], string> = { supportive: 'supportive', mixed: 'mixed', attention: 'requires attention' };
+
+function SajuEnergyWeather({ weather, result }: { weather: SajuEnergyWeatherItem[]; result: SajuResult }): ReactElement {
+  return <SectionCard className="saju-weather-card"><div className="card-kicker">ENERGY WEATHER</div><h2>시기별 에너지 날씨</h2><p className="muted">대운·세운·월운의 상징을 현재 행동을 점검하는 시간표로만 사용합니다. 좋은 일이나 어려운 일을 보장하지 않습니다.</p><div className="weather-timeline">{weather.map((item, index) => <article className={`weather-item ${item.tone}`} key={`${item.type}-${item.period}-${index}`}><div className="weather-head"><span>{item.type} · {item.period}</span><b className={`weather-tone ${item.tone}`}>{WEATHER_TONE_LABELS[item.tone]}</b></div><h3>{item.pillar} · {item.element} · {item.category}</h3><p>{item.summary}</p><p className="weather-suggestion">작은 제안 · {item.suggestion}</p><SajuWhyDetails evidence={[item.evidence]} appliedRuleIds={[item.type === '대운' ? 'timing.daewoon' : 'timing.annual-monthly']} confidence={item.confidence} result={result} /></article>)}</div></SectionCard>;
+}
+
+function SajuFeedback({ onFeedback }: { onFeedback: Notify }): ReactElement {
+  const [selected, setSelected] = useState('');
+  const choices = ['매우 와닿음', '어느 정도 와닿음', '잘 모르겠음', '다른 설명을 보고 싶어요'];
+  return <SectionCard className="saju-feedback"><div className="card-kicker">READING FEEDBACK</div><h2>이 설명이 지금의 나와 맞나요?</h2><p className="muted">선택한 피드백은 현재 브라우저에서만 안내 문구에 반영됩니다.</p><div className="feedback-choices">{choices.map((choice) => <button type="button" className={selected === choice ? 'feedback-choice selected' : 'feedback-choice'} key={choice} onClick={() => { setSelected(choice); onFeedback(`“${choice}” 피드백을 기록했습니다. 현재 세션에만 반영됩니다.`); }}>{choice}</button>)}</div></SectionCard>;
 }
 
 function ElementConstellation({ elements, maxElement }: { elements: SajuResult['elements']; maxElement: number }): ReactElement {
