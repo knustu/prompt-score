@@ -375,6 +375,20 @@ function SajuPage({ navigate, notify }: { navigate: Navigate; notify: Notify }):
   const saveCard = (): void => { if (!result) return; downloadCanvas(createSajuResultCard(result), 'prompt-score-saju.png'); notify('사주 카드를 PNG로 저장했습니다.'); };
   return (
     <div className="page-wrap page-content">
+      <section className="saju-moon-hero" aria-label="사주 분석 안내">
+        <div className="saju-moon-copy">
+          <span className="saju-hero-kicker">命理 · DATA CONSTELLATION</span>
+          <h1>달빛 아래,<br /><em>나의 네 기둥을 읽다</em></h1>
+          <p>사주의 원리를 현대적인 데이터 화면으로 정리합니다. 계산된 사실과 해석, 시기와 한계를 분리해 차분히 살펴보세요.</p>
+          <div className="saju-hero-tags"><span>음양오행</span><span>사주팔자</span><span>대운·세운</span></div>
+        </div>
+        <div className="saju-hero-console" aria-hidden="true">
+          <div className="console-moon">☾</div>
+          <div className="console-orbit orbit-one" /><div className="console-orbit orbit-two" />
+          <div className="console-stat"><small>FOUR PILLARS</small><b>年 月 日 時</b></div>
+          <div className="console-stat console-stat-bottom"><small>FIVE ELEMENTS</small><b>木 火 土 金 水</b></div>
+        </div>
+      </section>
       <PageIntro title="사주를 구조적으로 읽어볼까요?" description="출생 정보와 원하는 주제를 바탕으로 계산 사실, 적용 규칙, 해석, 시기, 한계를 분리해 보여드립니다."><div className="privacy-pill warm"><span>☼</span> 입력은 이 브라우저에만 저장됩니다</div></PageIntro>
       <div className="saju-layout">
         <SectionCard>
@@ -416,7 +430,10 @@ function SajuResult({ result, share, onCopy, onCard }: { result?: SajuResult; sh
     <SectionCard className="saju-summary">
       <div className="section-title-row"><div><span className="card-kicker">YOUR SAJU SNAPSHOT</span><h2>오행의 흐름</h2></div>{share && <button className="icon-action" onClick={onCopy}>↗</button>}</div>
       <p className="muted">{result.inputSummary}</p>
-      <div className="element-bars">{ELEMENT_ORDER.map((element) => <div className="element-row" key={element}><span style={{ color: ELEMENT_COLORS[element] }}>{ELEMENT_LABELS[element]}</span><div className="bar-track"><span style={{ width: `${(result.elements[element] / maxElement) * 100}%`, background: ELEMENT_COLORS[element] }} /></div><b>{result.elements[element]}</b></div>)}</div>
+      <div className="saju-element-dashboard">
+        <ElementConstellation elements={result.elements} maxElement={maxElement} />
+        <div className="element-bars">{ELEMENT_ORDER.map((element) => <div className="element-row" key={element}><span style={{ color: ELEMENT_COLORS[element] }}>{ELEMENT_LABELS[element]}</span><div className="bar-track"><span style={{ width: `${(result.elements[element] / maxElement) * 100}%`, background: ELEMENT_COLORS[element] }} /></div><b>{result.elements[element]}</b></div>)}</div>
+      </div>
       <div className="yin-yang"><span>음 {result.yinYang.yin}</span><div><i style={{ width: `${(result.yinYang.yin / Math.max(result.yinYang.yin + result.yinYang.yang, 1)) * 100}%` }} /><b style={{ width: `${(result.yinYang.yang / Math.max(result.yinYang.yin + result.yinYang.yang, 1)) * 100}%` }} /></div><span>양 {result.yinYang.yang}</span></div>
       <div className="result-actions compact"><Button secondary onClick={onCopy}>↗ 요약 링크</Button><Button secondary onClick={onCard}>↓ 카드 저장</Button></div>
     </SectionCard>
@@ -424,6 +441,20 @@ function SajuResult({ result, share, onCopy, onCard }: { result?: SajuResult; sh
     <SectionCard><div className="card-kicker">REFLECTION MENU</div><h2>카테고리별 리딩</h2><div className="interpretation-grid">{tabs.map(([key, label]) => <article key={key}><span>{label}</span><p>{result.interpretations[key]}</p></article>)}</div></SectionCard>
     {result.chart && result.structuredReadings && <SajuAdvancedResult result={result} />}
     <div className="notice warm-notice">☼ {result.disclaimer}</div>
+  </div>;
+}
+
+function ElementConstellation({ elements, maxElement }: { elements: SajuResult['elements']; maxElement: number }): ReactElement {
+  return <div className="element-constellation" aria-label="오행 분포 시각화">
+    <div className="constellation-grid" />
+    <div className="constellation-core"><span>五</span><small>오행 균형</small></div>
+    {ELEMENT_ORDER.map((element, index) => {
+      const level = Math.max(elements[element] / maxElement, .18);
+      return <div className="constellation-node" key={element} style={{ '--node-angle': `${index * 72 - 90}deg`, '--node-level': `${.5 + level * .48}` } as CSSProperties}>
+        <i style={{ background: ELEMENT_COLORS[element], boxShadow: `0 0 ${8 + level * 16}px ${ELEMENT_COLORS[element]}` }} />
+        <span>{ELEMENT_LABELS[element]}</span><b>{elements[element]}</b>
+      </div>;
+    })}
   </div>;
 }
 

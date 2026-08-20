@@ -510,3 +510,60 @@ input:not([type='checkbox']):not([type='radio']), textarea, select, .saju-form i
   .saju-indicator-grid { grid-template-columns: 1fr; }
   .saju-reading-items summary { align-items: flex-start; flex-direction: column; gap: 5px; }
 }
+
+/* Saju: moonlit hanok atmosphere + glass data instruments */
+.saju-moon-hero {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(270px, .9fr);
+  min-height: 360px;
+  overflow: hidden;
+  margin: -20px 0 48px;
+  padding: clamp(28px, 5vw, 58px);
+  border: 1px solid rgba(232, 193, 122, .32);
+  border-radius: 28px;
+  background: linear-gradient(90deg, rgba(4, 13, 29, .94) 0%, rgba(5, 19, 42, .82) 50%, rgba(5, 14, 31, .42) 100%), url('/images/saju-moonlit-hanok.png') center/cover;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.04), 0 24px 55px rgba(0, 0, 0, .24);
+}
+.saju-moon-hero::before { content: ''; position: absolute; z-index: -1; inset: 0; background: linear-gradient(120deg, transparent 35%, rgba(235, 186, 101, .11), transparent 64%); pointer-events: none; }
+.saju-moon-copy { position: relative; z-index: 1; align-self: center; max-width: 610px; }
+.saju-hero-kicker { color: #e7c57a; font: 700 10px 'DM Sans', 'Noto Sans KR', sans-serif; letter-spacing: .18em; text-shadow: 0 0 16px rgba(255, 200, 102, .5); }
+.saju-moon-copy h1 { margin: 14px 0; color: #fff7df; font-size: clamp(34px, 4.6vw, 58px); line-height: 1.16; letter-spacing: -.075em; }
+.saju-moon-copy h1 em { color: #f3cb7b; font-style: normal; text-shadow: 0 0 24px rgba(244, 188, 86, .36); }
+.saju-moon-copy p { max-width: 490px; margin: 0; color: #b9cad8; font-size: 14px; line-height: 1.8; word-break: keep-all; }
+.saju-hero-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+.saju-hero-tags span { padding: 7px 10px; border: 1px solid rgba(238, 205, 138, .32); border-radius: 999px; color: #f6ddac; background: rgba(7, 21, 41, .56); box-shadow: inset 0 1px rgba(255,255,255,.08); font-size: 10px; font-weight: 700; backdrop-filter: blur(8px); }
+.saju-hero-console { position: relative; z-index: 1; width: min(100%, 330px); aspect-ratio: 1; align-self: center; justify-self: end; border: 1px solid rgba(234, 203, 138, .46); border-radius: 50%; background: radial-gradient(circle, rgba(24, 55, 80, .5), rgba(6, 13, 31, .25) 62%, transparent 63%); box-shadow: inset 0 0 45px rgba(101, 208, 255, .12), 0 0 34px rgba(245, 189, 89, .15); }
+.saju-hero-console::before, .saju-hero-console::after { content: ''; position: absolute; inset: 14%; border: 1px solid rgba(117, 225, 255, .28); border-radius: 50%; transform: rotateX(58deg) rotateZ(30deg); }
+.saju-hero-console::after { inset: 29%; border-color: rgba(248, 202, 116, .46); transform: rotateX(62deg) rotateZ(-34deg); }
+.console-moon { position: absolute; z-index: 2; top: 50%; left: 50%; display: grid; width: 82px; height: 82px; place-items: center; transform: translate(-50%, -50%); border: 1px solid rgba(255, 223, 153, .66); border-radius: 50%; color: #fff0bc; background: radial-gradient(circle at 40% 35%, #fff8d6, #f5c76a 40%, rgba(143, 89, 37, .45) 72%); box-shadow: 0 0 32px rgba(255, 205, 104, .45); font-size: 48px; line-height: 1; }
+.console-orbit { position: absolute; left: 50%; top: 50%; width: 84%; height: 26%; border: 1px solid rgba(101, 222, 255, .36); border-radius: 50%; transform: translate(-50%, -50%) rotate(-35deg); }
+.console-orbit.orbit-two { width: 68%; transform: translate(-50%, -50%) rotate(44deg); border-color: rgba(242, 189, 100, .38); }
+.console-stat { position: absolute; z-index: 3; top: 16%; left: -8%; display: grid; gap: 4px; padding: 10px 12px; border: 1px solid rgba(128, 222, 255, .3); border-radius: 12px; background: rgba(5, 19, 39, .72); box-shadow: 0 0 18px rgba(85, 242, 255, .09); backdrop-filter: blur(8px); }
+.console-stat-bottom { top: auto; right: -6%; bottom: 13%; left: auto; border-color: rgba(240, 195, 110, .3); }
+.console-stat small { color: #8ebed1; font: 700 8px 'DM Sans', sans-serif; letter-spacing: .12em; }
+.console-stat b { color: #f5deb0; font-size: 12px; letter-spacing: .16em; white-space: nowrap; }
+
+.saju-summary { position: relative; overflow: hidden; border-color: rgba(104, 214, 255, .28); background: linear-gradient(135deg, rgba(11, 31, 55, .9), rgba(15, 25, 52, .83)); }
+.saju-summary::after { content: ''; position: absolute; top: -90%; right: -5%; width: 50%; aspect-ratio: 1; border: 1px solid rgba(95, 223, 255, .16); border-radius: 50%; box-shadow: 0 0 0 30px rgba(236, 190, 96, .035), 0 0 50px rgba(85, 242, 255, .08); pointer-events: none; }
+.saju-summary > * { position: relative; z-index: 1; }
+.saju-element-dashboard { display: grid; grid-template-columns: minmax(180px, .82fr) minmax(0, 1.18fr); align-items: center; gap: 24px; margin-top: 18px; }
+.saju-element-dashboard .element-bars { margin: 0; }
+.element-constellation { position: relative; min-height: 202px; overflow: hidden; border: 1px solid rgba(106, 218, 255, .22); border-radius: 18px; background: radial-gradient(circle at center, rgba(50, 107, 136, .2), rgba(5, 13, 32, .28)); }
+.constellation-grid { position: absolute; inset: 0; opacity: .36; background-image: linear-gradient(rgba(119, 225, 255, .16) 1px, transparent 1px), linear-gradient(90deg, rgba(119, 225, 255, .16) 1px, transparent 1px); background-size: 24px 24px; mask-image: radial-gradient(circle, black 25%, transparent 76%); }
+.constellation-core { position: absolute; z-index: 2; top: 50%; left: 50%; display: grid; width: 62px; height: 62px; place-items: center; transform: translate(-50%, -50%); border: 1px solid rgba(255, 211, 124, .58); border-radius: 50%; color: #f8d78d; background: rgba(11, 28, 53, .93); box-shadow: 0 0 22px rgba(246, 196, 97, .24); }
+.constellation-core span { font-size: 28px; line-height: 1; }.constellation-core small { color: #a8c7d9; font-size: 8px; white-space: nowrap; }
+.constellation-node { position: absolute; z-index: 3; top: 50%; left: 50%; display: grid; grid-template-columns: 10px auto; column-gap: 5px; align-items: center; transform: rotate(var(--node-angle)) translateX(calc(50px + 35px * var(--node-level))) rotate(calc(-1 * var(--node-angle))); transform-origin: 0 0; color: #c8dae8; font-size: 9px; white-space: nowrap; }
+.constellation-node i { grid-row: span 2; width: 8px; height: 8px; border-radius: 50%; }.constellation-node span { font-weight: 700; }.constellation-node b { color: #91bcd0; font: 700 9px 'DM Sans', sans-serif; }
+.saju-summary .element-row { grid-template-columns: 42px 1fr 22px; }.saju-summary .bar-track { height: 7px; background: rgba(123, 190, 221, .13); box-shadow: inset 0 0 0 1px rgba(127, 214, 246, .08); }.saju-summary .element-row b { color: #c7dce7; }
+.saju-summary .yin-yang { padding-top: 14px; border-top: 1px solid rgba(118, 215, 245, .14); }.saju-summary .yin-yang > div { background: rgba(104, 183, 210, .18); }.saju-summary .yin-yang i { background: linear-gradient(90deg, #6a7eff, #b778ff); }.saju-summary .yin-yang b { background: linear-gradient(90deg, #f0a85e, #f7d47f); }
+
+.pillars-table { gap: 10px; }.pillar-row { position: relative; overflow: hidden; border: 1px solid rgba(111, 213, 255, .16); background: linear-gradient(145deg, rgba(12, 27, 51, .76), rgba(16, 34, 61, .42)); }.pillar-row::before { content: ''; position: absolute; inset: 4px; border: 1px solid rgba(244, 200, 112, .14); border-radius: 9px; pointer-events: none; }.pillar-row strong { color: #f2d797; text-shadow: 0 0 17px rgba(245, 201, 105, .28); }.pillar-row small { color: #a3c1d2; }.saju-fact-grid > div, .saju-advanced-pillars article, .saju-indicator-grid article, .saju-data-list li, .saju-reading-items details, .saju-method-card details { border: 1px solid rgba(108, 213, 255, .13); background: linear-gradient(145deg, rgba(11, 25, 49, .76), rgba(8, 20, 41, .58)); }.saju-fact-grid strong, .saju-advanced-pillars strong, .saju-timing-columns h3 { color: #f2d797; }
+
+@media (max-width: 860px) {
+  .saju-moon-hero { grid-template-columns: 1fr; min-height: 470px; }.saju-hero-console { justify-self: center; width: min(290px, 76vw); margin-top: 16px; }.saju-element-dashboard { grid-template-columns: 1fr; }.element-constellation { max-width: 340px; width: 100%; margin: 0 auto; }
+}
+@media (max-width: 620px) {
+  .saju-moon-hero { min-height: 500px; margin-top: -10px; margin-bottom: 34px; padding: 28px 20px; border-radius: 22px; background-position: 57% center; }.saju-moon-copy h1 { font-size: 36px; }.saju-moon-copy p { font-size: 12px; }.saju-hero-console { width: min(260px, 82vw); }.console-stat { left: -10%; }.console-stat-bottom { right: -7%; }.saju-element-dashboard { gap: 18px; }
+}
