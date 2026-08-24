@@ -6,7 +6,7 @@ describe('TarotEngine', () => {
   it('contains a standard 78-card deck with structured meanings', () => {
     expect(TAROT_CARDS).toHaveLength(78);
     expect(new Set(TAROT_CARDS.map((card) => card.id)).size).toBe(78);
-    expect(TAROT_CARDS.every((card) => card.uprightKeywords.length > 0 && card.reversedKeywords.length > 0 && card.loveMeaning && card.studyMeaning && card.careerMeaning && card.moneyMeaning)).toBe(true);
+    expect(TAROT_CARDS.every((card) => card.aiArchetype && card.uprightKeywords.length > 0 && card.reversedKeywords.length > 0 && card.loveMeaning && card.studyMeaning && card.careerMeaning && card.moneyMeaning)).toBe(true);
   });
 
   it('reproduces the same card order and orientation for the same seed', () => {

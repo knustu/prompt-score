@@ -67,7 +67,7 @@ export const validateSajuInput = (input: SajuInput): SajuValidation => {
   if (input.calendar === 'lunar' && !LUNAR_ANCHORS[year]) return { valid: false, message: '음력 간소화 데이터는 2020~2035년만 지원합니다.' };
   if (!input.timeUnknown && !/^([01]\d|2[0-3]):[0-5]\d$/u.test(input.birthTime)) return { valid: false, message: '출생 시간을 HH:MM 형식으로 입력해주세요.' };
   if (!input.birthPlace.trim()) return { valid: false, message: '출생지를 입력해주세요.' };
-  if (!input.timezone.trim() || !isValidTimezone(input.timezone.trim())) return { valid: false, message: 'IANA 시간대 예시(Asia/Seoul)를 입력해주세요.' };
+  if (!input.timezone.trim() || !isValidTimezone(input.timezone.trim())) return { valid: false, message: 'IANA 시간대(예: America/Toronto, Europe/Paris)를 입력해주세요.' };
   if (input.daylightSaving !== 'auto' && input.daylightSaving !== 'standard' && input.daylightSaving !== 'daylight') return { valid: false, message: '서머타임 설정을 확인해주세요.' };
   if (!input.consent) return { valid: false, message: '계산과 저장에 동의해야 결과를 만들 수 있습니다.' };
   if (input.topic === 'compatibility') {
@@ -395,6 +395,6 @@ export const calculateSajuChart = (input: SajuInput): SajuCalculationOutput => {
 
 export const defaultSajuInput = (): SajuInput => ({
   birthDate: '2000-01-01', birthTime: '12:00', timeUnknown: false, calendar: 'solar', leapMonth: false, gender: 'unspecified',
-  birthPlace: '서울, 대한민국', timezone: 'Asia/Seoul', daylightSaving: 'auto', topic: 'overall', question: '', background: { family: '', personal: '' }, consent: false,
-  compatibility: { birthDate: '2000-01-01', birthTime: '12:00', timeUnknown: false, calendar: 'solar', leapMonth: false, gender: 'unspecified', birthPlace: '서울, 대한민국', timezone: 'Asia/Seoul', daylightSaving: 'auto' },
+  birthPlace: '서울, 대한민국', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', daylightSaving: 'auto', topic: 'overall', question: '', background: { family: '', personal: '' }, consent: false,
+  compatibility: { birthDate: '2000-01-01', birthTime: '12:00', timeUnknown: false, calendar: 'solar', leapMonth: false, gender: 'unspecified', birthPlace: '서울, 대한민국', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', daylightSaving: 'auto' },
 });

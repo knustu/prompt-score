@@ -126,6 +126,7 @@ export interface TarotCard {
   id: string;
   name: string;
   arcana: 'Major' | 'Wands' | 'Cups' | 'Swords' | 'Pentacles';
+  aiArchetype?: string;
   uprightKeywords: string[];
   reversedKeywords: string[];
   generalMeaning: string;

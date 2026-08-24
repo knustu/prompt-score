@@ -64,12 +64,43 @@ const minorCards = (arcana: keyof typeof SUIT_INFO): CardSeed[] => MINOR_RANKS.m
   };
 });
 
-export const TAROT_CARDS: TarotCard[] = [
+const AI_MAJOR_ARCHETYPES = [
+  'BOOT SEQUENCE · 미지의 입력', 'TOOLCHAIN · 실행 가능한 도구', 'LATENT SIGNAL · 숨은 정보', 'GENESIS ENGINE · 생성과 돌봄',
+  'SYSTEM ARCHITECT · 구조와 책임', 'KNOWLEDGE PROTOCOL · 검증된 학습', 'DUAL-AGENT LINK · 가치의 선택', 'VECTOR DRIVE · 목표 정렬',
+  'EMPATHY CORE · 부드러운 제어', 'DEEP SCAN · 내부 탐구', 'CYCLE SHIFT · 주기 전환', 'FAIRNESS MODEL · 균형 판단',
+  'VIEWPOINT SWAP · 관점 재설정', 'MIGRATION EVENT · 낡은 패턴 종료', 'BALANCE LOOP · 조율과 혼합', 'DESIRE LOCK · 집착 감지',
+  'SYSTEM RESET · 구조 재부팅', 'RECOVERY BEACON · 희망 신호', 'UNCERTAINTY FIELD · 안개 속 추론', 'FULL SPECTRUM · 명료한 출력',
+  'RETRAIN SIGNAL · 재평가와 각성', 'MISSION COMPLETE · 통합된 결과',
+] as const;
+
+const AI_MINOR_RANKS: Record<string, string> = {
+  ace: 'SEED', '02': 'DUAL CHANNEL', '03': 'EXPANSION', '04': 'STABLE CORE', '05': 'CONFLICT TEST',
+  '06': 'RECOVERY PATCH', '07': 'QUALITY CHECK', '08': 'FAST LOOP', '09': 'DEEP BUFFER', '10': 'FULL CYCLE',
+  page: 'EXPLORER AGENT', knight: 'RUNNER AGENT', queen: 'SOVEREIGN MODEL', king: 'CONTROL PLANE',
+};
+
+const AI_MINOR_SUITS: Record<keyof typeof SUIT_INFO, string> = {
+  Wands: 'ACTION NODE',
+  Cups: 'EMOTION FIELD',
+  Swords: 'LOGIC MATRIX',
+  Pentacles: 'RESOURCE GRID',
+};
+
+const addAiArchetypes = (cards: TarotCard[]): TarotCard[] => cards.map((card) => {
+  if (card.arcana === 'Major') {
+    const index = Number(card.id.slice(-2));
+    return { ...card, aiArchetype: AI_MAJOR_ARCHETYPES[index] ?? 'UNKNOWN MAJOR NODE' };
+  }
+  const rank = card.id.slice(card.id.lastIndexOf('-') + 1);
+  return { ...card, aiArchetype: `${AI_MINOR_SUITS[card.arcana]} · ${AI_MINOR_RANKS[rank] ?? 'UNCLASSIFIED NODE'}` };
+});
+
+export const TAROT_CARDS: TarotCard[] = addAiArchetypes([
   ...MAJOR_CARDS,
   ...minorCards('Wands'),
   ...minorCards('Cups'),
   ...minorCards('Swords'),
   ...minorCards('Pentacles'),
-].map(makeCard);
+].map(makeCard));
 
 export const TAROT_CARD_COUNT = 78;

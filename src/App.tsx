@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode, type ReactElement, type PointerEvent as HoloPointerEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode, type ReactElement, type PointerEvent as HoloPointerEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { CHALLENGES, FREEFORM_CHALLENGE_ID, getChallenge } from './domain/prompt/ChallengeDefinitions';
 import { PROMPT_CATEGORIES } from './domain/prompt/PromptRuleDefinitions';
 import { evaluatePrompt, resultFromPromptShareSummary, toPromptShareSummary } from './domain/prompt/PromptEvaluationEngine';
@@ -7,6 +8,7 @@ import { calculateSaju, defaultSajuInput, validateSajuInput } from './domain/saj
 import { ELEMENT_GUIDANCE } from './domain/saju/SajuKnowledgeBase';
 import { ELEMENT_COLORS, ELEMENT_LABELS, ELEMENT_ORDER } from './domain/saju/SajuRuleDefinitions';
 import { createTarotSeed, drawTarot, drawTarotCompatibility, TAROT_CATEGORY_LABELS, TAROT_DISCLAIMER } from './domain/tarot/TarotEngine';
+import { TAROT_CARDS } from './domain/tarot/TarotCardData';
 import { createComparisonCard, createPromptResultCard, createSajuResultCard, createTarotCard, downloadCanvas, shareCanvas } from './domain/card/ResultCardGenerator';
 import {
   createComparisonShareCode,
@@ -29,13 +31,12 @@ import type {
   SajuPersona,
   SajuQuestionPrompt,
   SajuResult,
-  SajuReadingItem,
-  SajuReadingKey,
   SajuReadingTopic,
   SajuSharePayload,
   SajuSituationContext,
   SajuTone,
   TarotCategory,
+  TarotCard,
   TarotReading,
   TarotSharePayload,
 } from './domain/types';
@@ -43,8 +44,11 @@ import type {
 const STORAGE_KEYS = {
   prompt: 'prompt-score.prompt-result',
   tarot: 'prompt-score.tarot-reading',
+  tarotCurrent: 'prompt-score.tarot-current',
   saju: 'prompt-score.saju-result',
 } as const;
+
+const GUIDE_STORAGE_KEY = 'prompt-score.guides-hidden';
 
 const readStored = <T,>(key: string): T | undefined => {
   try {
@@ -112,6 +116,9 @@ function App(): ReactElement {
   else if (path === '/results') page = <PromptResultPage navigate={navigate} notify={notify} />;
   else if (path === '/saju') page = <SajuPage navigate={navigate} notify={notify} />;
   else if (path === '/tarot') page = <TarotPage navigate={navigate} notify={notify} />;
+  else if (path === '/detail/prompt') page = <PromptDetailPage navigate={navigate} />;
+  else if (path === '/detail/saju') page = <SajuDetailPage navigate={navigate} />;
+  else if (path === '/detail/tarot') page = <TarotDetailPage navigate={navigate} />;
   else if (path === '/compare') page = <ComparePage navigate={navigate} notify={notify} />;
   else page = <LandingPage navigate={navigate} />;
 
@@ -206,9 +213,10 @@ function Footer({ navigate, notify }: { navigate: Navigate; notify: Notify }): R
   );
 }
 
-function PageIntro({ title, description, children }: { eyebrow?: string; title: string; description: string; children?: ReactNode }): ReactElement {
+function PageIntro({ eyebrow, title, description, children }: { eyebrow?: string; title: string; description: string; children?: ReactNode }): ReactElement {
   return (
     <div className="page-intro">
+      {eyebrow && <span className="page-eyebrow">{eyebrow}</span>}
       <h1>{title}</h1>
       <p>{description}</p>
       {children}
@@ -220,8 +228,180 @@ function Button({ children, onClick, secondary = false, type = 'button', disable
   return <button type={type} className={secondary ? 'button secondary' : 'button'} onClick={onClick} disabled={disabled}>{children}</button>;
 }
 
-function SectionCard({ children, className = '' }: { children: ReactNode; className?: string }): ReactElement {
-  return <section className={`section-card ${className}`}>{children}</section>;
+type GuideKind = 'prompt' | 'saju' | 'tarot';
+type GuidePhase = 'input' | 'result' | 'more';
+type GuideTarget = { kind: GuideKind; section: string; detail: string };
+
+function SectionCard({ children, className = '', guideKind, guideSection, guideDetail }: { children: ReactNode; className?: string; guideKind?: GuideKind; guideSection?: string; guideDetail?: string }): ReactElement {
+  return <section className={`section-card ${className}`} data-guide-kind={guideKind} data-guide-section={guideSection} data-guide-detail={guideDetail}>{children}</section>;
+}
+
+const GUIDE_COPY: Record<GuideKind, { title: string; label: string }> = {
+  prompt: { title: '루미 · 학습 로봇', label: 'PROMPT GUIDE' },
+  saju: { title: '연화 · 구름을 읽는 사람', label: 'SAJU GUIDE' },
+  tarot: { title: '모르 · 별을 타는 안내자', label: 'TAROT GUIDE' },
+};
+
+const INITIAL_GUIDE_MESSAGE = '저를 이동시켜 상세설명을 받아보세요.';
+const GUIDE_DETAIL_QUESTION = '상세설명을 받으시겠습니까?';
+
+const GUIDE_ART: Record<GuideKind, string> = {
+  prompt: '/images/guide-prompt.png',
+  saju: '/images/guide-saju.png',
+  tarot: '/images/guide-tarot.png',
+};
+
+const FALLBACK_TIMEZONES = ['UTC', 'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'America/Toronto', 'America/Sao_Paulo', 'Europe/London', 'Europe/Paris', 'Africa/Cairo', 'Asia/Dubai', 'Asia/Kolkata', 'Asia/Singapore', 'Asia/Seoul', 'Asia/Tokyo', 'Australia/Sydney', 'Pacific/Auckland'];
+const TIMEZONE_OPTIONS = Array.from(new Set(['UTC', ...((Intl as unknown as { supportedValuesOf?: (key: string) => string[] }).supportedValuesOf?.('timeZone') ?? FALLBACK_TIMEZONES)]));
+
+type GuidePosition = { x: number; y: number; petWidth: number; petHeight: number; flip: boolean; bubbleBelow: boolean };
+
+function centerGuidePosition(): GuidePosition {
+  const viewportWidth = typeof window === 'undefined' ? 390 : window.innerWidth;
+  const viewportHeight = typeof window === 'undefined' ? 800 : window.innerHeight;
+  const petWidth = viewportWidth < 620 ? 104 : 132;
+  const petHeight = viewportWidth < 620 ? 148 : 188;
+  const x = Math.max(12, (viewportWidth - petWidth) / 2);
+  const y = Math.max(76, (viewportHeight - petHeight) / 2);
+
+  return {
+    x,
+    y,
+    petWidth,
+    petHeight,
+    flip: false,
+    bubbleBelow: y < 170,
+  };
+}
+
+function clampGuidePosition(position: GuidePosition): GuidePosition {
+  const maxX = Math.max(8, window.innerWidth - position.petWidth - 8);
+  const maxY = Math.max(8, window.innerHeight - position.petHeight - 8);
+  const x = Math.min(Math.max(position.x, 8), maxX);
+  const y = Math.min(Math.max(position.y, 8), maxY);
+  return { ...position, x, y, flip: x + position.petWidth / 2 > window.innerWidth / 2, bubbleBelow: y < 170 };
+}
+
+function distanceToRect(x: number, y: number, rect: DOMRect): number {
+  const horizontal = Math.max(rect.left - x, 0, x - rect.right);
+  const vertical = Math.max(rect.top - y, 0, y - rect.bottom);
+  return Math.hypot(horizontal, vertical);
+}
+
+function findClosestGuideTarget(kind: GuideKind, position: GuidePosition): GuideTarget | undefined {
+  if (typeof document === 'undefined') return undefined;
+  const centerX = position.x + position.petWidth / 2;
+  const centerY = position.y + position.petHeight / 2;
+  const targets = Array.from(document.querySelectorAll<HTMLElement>(`[data-guide-kind="${kind}"][data-guide-section][data-guide-detail]`));
+  let closest: { target: GuideTarget; distance: number } | undefined;
+  targets.forEach((element) => {
+    const detail = element.dataset.guideDetail;
+    const section = element.dataset.guideSection;
+    if (!detail || !section) return;
+    const distance = distanceToRect(centerX, centerY, element.getBoundingClientRect());
+    if (!closest || distance < closest.distance) closest = { target: { kind, section, detail }, distance };
+  });
+  const threshold = Math.max(72, Math.min(120, Math.min(window.innerWidth, window.innerHeight) * .16));
+  return closest && closest.distance <= threshold ? closest.target : undefined;
+}
+
+function GuideCharacter({ kind, active = true, onAction, onDetail }: { kind: GuideKind; phase?: GuidePhase; active?: boolean; onAction?: () => void; onDetail?: (target: GuideTarget) => void }): ReactElement | null {
+  const [hidden, setHidden] = useState(() => typeof window !== 'undefined' && localStorage.getItem(GUIDE_STORAGE_KEY) === 'hidden');
+  const [entered, setEntered] = useState(false);
+  const [bubbleOpen, setBubbleOpen] = useState(true);
+  const [position, setPosition] = useState<GuidePosition>(() => centerGuidePosition());
+  const [selectedTarget, setSelectedTarget] = useState<GuideTarget>();
+  const latestPosition = useRef(position);
+  const dragState = useRef<{ pointerId: number; offsetX: number; offsetY: number; moved: boolean } | undefined>(undefined);
+  const suppressClick = useRef(false);
+  const copy = GUIDE_COPY[kind];
+
+  const updatePosition = (next: GuidePosition): void => {
+    latestPosition.current = next;
+    setPosition(next);
+  };
+
+  useEffect(() => {
+    if (hidden || (!active && kind === 'prompt')) return undefined;
+    const recenter = (): void => updatePosition(clampGuidePosition(latestPosition.current));
+    recenter();
+    setBubbleOpen(true);
+    setSelectedTarget(undefined);
+    setEntered(false);
+    const timer = window.setTimeout(() => setEntered(true), 80);
+    window.addEventListener('resize', recenter);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('resize', recenter);
+    };
+  }, [active, hidden, kind]);
+
+  if (!active && kind === 'prompt') return null;
+  const portal = (content: ReactElement): ReactElement => createPortal(content, document.body);
+  if (hidden) {
+    return portal(<div className="guide-reopen"><span>가이드가 꺼져 있어요.</span><button type="button" onClick={() => { localStorage.removeItem(GUIDE_STORAGE_KEY); setHidden(false); setEntered(false); }}>가이드 다시 보기</button></div>);
+  }
+
+  const hide = (): void => {
+    localStorage.setItem(GUIDE_STORAGE_KEY, 'hidden');
+    setHidden(true);
+  };
+
+  const handlePointerDown = (event: ReactPointerEvent<HTMLButtonElement>): void => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    event.preventDefault();
+    const rect = event.currentTarget.getBoundingClientRect();
+    dragState.current = { pointerId: event.pointerId, offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top, moved: false };
+    suppressClick.current = false;
+    setSelectedTarget(undefined);
+    setBubbleOpen(false);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handlePointerMove = (event: ReactPointerEvent<HTMLButtonElement>): void => {
+    const drag = dragState.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    const current = latestPosition.current;
+    const next = clampGuidePosition({ ...current, x: event.clientX - drag.offsetX, y: event.clientY - drag.offsetY });
+    if (Math.hypot(next.x - current.x, next.y - current.y) > 3) drag.moved = true;
+    updatePosition(next);
+  };
+
+  const handlePointerEnd = (event: ReactPointerEvent<HTMLButtonElement>): void => {
+    const drag = dragState.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    dragState.current = undefined;
+    suppressClick.current = drag.moved;
+    const target = drag.moved ? findClosestGuideTarget(kind, latestPosition.current) : undefined;
+    setSelectedTarget(target);
+    setBubbleOpen(true);
+  };
+
+  const positionStyle = {
+    '--guide-x': `${position.x}px`,
+    '--guide-y': `${position.y}px`,
+    '--guide-center-x': `${position.x + position.petWidth / 2}px`,
+    '--guide-pet-height': `${position.petHeight}px`,
+    '--guide-flip': position.flip ? '-1' : '1',
+  } as CSSProperties;
+
+  return portal(
+    <aside className={`guide-character guide-${kind} ${entered ? 'is-entered' : ''}`} aria-label={`${copy.title} 가이드`}>
+      <button className={dragState.current ? 'guide-pet is-dragging' : 'guide-pet'} style={positionStyle} type="button" onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerEnd} onPointerCancel={handlePointerEnd} onLostPointerCapture={handlePointerEnd} onClick={() => { if (suppressClick.current) { suppressClick.current = false; return; } setBubbleOpen((open) => !open); }} aria-label={`${copy.title} 가이드 ${selectedTarget ? '상세설명 열기' : bubbleOpen ? '말풍선 닫기' : '말풍선 열기'}`}>
+        <span className="guide-shadow" aria-hidden="true" />
+        <img className="guide-art" src={GUIDE_ART[kind]} alt="" />
+      </button>
+      {bubbleOpen && <div className={`guide-bubble ${position.bubbleBelow ? 'is-below' : ''}`} style={positionStyle} role="status" aria-live="polite">
+        <span className="guide-label">{copy.label}</span>
+        <strong>{copy.title}</strong>
+        <p>{selectedTarget ? GUIDE_DETAIL_QUESTION : INITIAL_GUIDE_MESSAGE}</p>
+        {selectedTarget && onDetail ? <button className="guide-action" type="button" onClick={() => onDetail(selectedTarget)}>상세설명</button> : onAction && <button className="guide-action" type="button" onClick={onAction}>다음 정보 보기 →</button>}
+        <button className="guide-hide" type="button" onClick={hide}>× 가이드 숨기기</button>
+      </div>}
+    </aside>
+  );
 }
 
 function LandingPage({ navigate }: { navigate: Navigate }): ReactElement {
@@ -279,6 +459,13 @@ function Step({ number, title, text }: { number: string; title: string; text: st
   return <div className="step"><span>{number}</span><div><h3>{title}</h3><p>{text}</p></div></div>;
 }
 
+function PromptLabBanner(): ReactElement {
+  return <section className="prompt-lab-banner" aria-label="AI 학습 분석실">
+    <div className="lab-copy"><span className="lab-kicker">AI LEARNING LAB · LOOP 07</span><h2>질문을 데이터로 바꾸는<br /><em>학습 루프</em></h2><p>입력 → 구조 감지 → 피드백. 프롬프트를 한 번 더 다듬을 때마다 AI와 협업하는 감각이 선명해져요.</p></div>
+    <div className="lab-monitor" aria-hidden="true"><div className="monitor-top"><span>NEURAL TRACE</span><b>SYNC 98.4%</b></div><div className="lab-bars"><i /><i /><i /><i /><i /></div><div className="lab-table"><span>목표</span><b>88</b><span>맥락</span><b>72</b><span>출력</span><b>64</b></div><div className="monitor-cursor" /></div>
+  </section>;
+}
+
 function EvaluatePage({ navigate, notify }: { navigate: Navigate; notify: Notify }): ReactElement {
   const [challengeId, setChallengeId] = useState(CHALLENGES[0].id);
   const [prompt, setPrompt] = useState('');
@@ -297,10 +484,12 @@ function EvaluatePage({ navigate, notify }: { navigate: Navigate; notify: Notify
     navigate('/results');
   };
   return (
-    <div className="page-wrap page-content">
+    <div className="page-wrap page-content evaluate-page">
       <PageIntro eyebrow="Prompt check" title="내 프롬프트, 어디까지 구체적일까?" description="챌린지를 고르거나 자유롭게 입력해보세요. 원문은 브라우저 밖으로 나가지 않습니다.">
         <div className="privacy-pill"><span>✓</span> 로컬 규칙 엔진 · AI API 없음</div>
       </PageIntro>
+      <PromptLabBanner />
+      <GuideCharacter kind="prompt" phase="input" />
       <form onSubmit={submit} className="evaluate-layout">
         <div className="evaluate-main">
           <SectionCard>
@@ -335,24 +524,37 @@ function PromptResultPage({ navigate, notify }: { navigate: Navigate; notify: No
   const code = createPromptShareCode(result);
   const url = shareUrl('/results', 'share', code);
   const compareUrl = `/compare?mine=${encodeURIComponent(code)}`;
+  const detailUrl = (section: string): string => `/detail/prompt?section=${encodeURIComponent(section)}${sharedSummary ? `&share=${encodeURIComponent(query.get('share') ?? '')}` : ''}`;
   const handleShare = async (): Promise<void> => { const copied = await copyText(url); setShareStatus(copied ? '공유 링크를 복사했어요.' : '링크 복사에 실패했어요.'); notify(copied ? '공유 링크를 복사했습니다.' : '링크 복사에 실패했습니다.'); };
   const handleCard = async (): Promise<void> => { const canvas = createPromptResultCard(result); const outcome = await shareCanvas(canvas, 'Prompt Score 결과', `내 프롬프트 점수는 ${result.overallScore}점입니다.`); setShareStatus(outcome === 'shared' ? '공유 시트를 열었어요.' : 'PNG를 저장했어요.'); };
   const handleDownload = (): void => { downloadCanvas(createPromptResultCard(result), 'prompt-score-result.png'); notify('결과 카드를 PNG로 저장했습니다.'); };
   return (
-    <div className="page-wrap page-content result-page">
+    <div className="page-wrap page-content result-page prompt-result-page">
       <PageIntro eyebrow={sharedSummary ? 'Shared prompt result' : 'Prompt result'} title="내 프롬프트 사용 설명서" description={sharedSummary ? '공유된 요약 결과입니다. 원문 프롬프트와 개인정보는 포함하지 않았어요.' : '점수보다 중요한 건, 다음 프롬프트에서 바로 바꿔볼 한 가지예요.'} />
-      <SectionCard className="result-hero-card"><ScoreHeader score={result.overallScore} level={result.level} styleLabel={result.styleLabel} shared={Boolean(sharedSummary)} /><div className="result-actions"><Button onClick={handleShare}>↗ 공유 링크 복사</Button><Button secondary onClick={handleCard}>▣ 결과 카드 만들기</Button><Button secondary onClick={handleDownload}>↓ PNG 저장</Button></div>{shareStatus && <p className="success-text">{shareStatus}</p>}</SectionCard>
-      <SectionCard><div className="section-title-row"><div><span className="card-kicker">10 CATEGORIES</span><h2>프롬프트 구조 점수</h2></div><span className="small-note">강함 70 · 부분적 40 · 약함 0</span></div><ScoreBars result={result} /><CategoryDetails result={result} shared={Boolean(sharedSummary)} /></SectionCard>
-      <div className="result-two-col"><SectionCard><div className="card-kicker">TOP 3 · STRENGTHS</div><h2>잘하고 있는 점</h2><FeedbackItems items={result.strengths} strength /></SectionCard><SectionCard><div className="card-kicker">TOP 3 · GROWTH</div><h2>다음에 보완할 점</h2><FeedbackItems items={result.weaknesses} /></SectionCard></div>
-      <div className="result-two-col"><SectionCard><div className="card-kicker">EVIDENCE</div><h2>감지된 근거</h2>{sharedSummary ? <p className="muted">공유 결과에는 원문과 근거 문장이 포함되지 않습니다. 내 브라우저에서 만든 결과를 확인하면 더 자세히 볼 수 있어요.</p> : result.evidence.length ? <div className="evidence-list">{result.evidence.slice(0, 10).map((item, index) => <div className="evidence-item" key={`${item.ruleId}-${index}`}><span>{item.signal}</span><p>{item.text}</p></div>)}</div> : <p className="muted">아직 감지된 신호가 없습니다.</p>}</SectionCard><SectionCard><div className="card-kicker">NEXT ACTIONS</div><h2>추천 한 걸음</h2><ol className="recommendation-list">{result.recommendations.map((item, index) => <li key={item}><span>{index + 1}</span>{item}</li>)}</ol>{result.missingElements.length > 0 && <><div className="mini-divider" /><strong className="subheading">빠진 요소</strong><div className="missing-list">{result.missingElements.slice(0, 4).map((item) => <span key={item}>{item}</span>)}</div></>}</SectionCard></div>
+      <GuideCharacter kind="prompt" phase="result" onDetail={(target) => navigate(target.detail)} />
+      <SectionCard className="result-hero-card" guideKind="prompt" guideSection="score-summary" guideDetail={detailUrl('score-summary')}><ScoreHeader score={result.overallScore} level={result.level} styleLabel={result.styleLabel} shared={Boolean(sharedSummary)} /><div className="result-actions"><Button onClick={handleShare}>↗ 공유 링크 복사</Button><Button secondary onClick={handleCard}>▣ 결과 카드 만들기</Button><Button secondary onClick={handleDownload}>↓ PNG 저장</Button></div>{shareStatus && <p className="success-text">{shareStatus}</p>}</SectionCard>
+      <SectionCard guideKind="prompt" guideSection="category-score" guideDetail={detailUrl('category-score')}><div className="section-title-row"><div><span className="card-kicker">10 CATEGORIES</span><h2>프롬프트 구조 점수</h2></div><span className="small-note">강함 70 · 부분적 40 · 약함 0</span></div><ScoreBars result={result} detailUrl={detailUrl} /><PromptSignalTable result={result} /><CategoryDetails result={result} shared={Boolean(sharedSummary)} /></SectionCard>
+      <div className="result-two-col"><SectionCard><div className="card-kicker">TOP 3 · STRENGTHS</div><h2>잘하고 있는 점</h2><FeedbackItems items={result.strengths} strength /></SectionCard><SectionCard guideKind="prompt" guideSection="improvements" guideDetail={detailUrl('improvements')}><div className="card-kicker">TOP 3 · GROWTH</div><h2>다음에 보완할 점</h2><FeedbackItems items={result.weaknesses} /></SectionCard></div>
+      <div className="result-two-col"><SectionCard guideKind="prompt" guideSection="evidence" guideDetail={detailUrl('evidence')}><div className="card-kicker">EVIDENCE</div><h2>감지된 근거</h2>{sharedSummary ? <p className="muted">공유 결과에는 원문과 근거 문장이 포함되지 않습니다. 내 브라우저에서 만든 결과를 확인하면 더 자세히 볼 수 있어요.</p> : result.evidence.length ? <div className="evidence-list">{result.evidence.slice(0, 10).map((item, index) => <div className="evidence-item" key={`${item.ruleId}-${index}`}><span>{item.signal}</span><p>{item.text}</p></div>)}</div> : <p className="muted">아직 감지된 신호가 없습니다.</p>}</SectionCard><SectionCard guideKind="prompt" guideSection="suggestions" guideDetail={detailUrl('suggestions')}><div className="card-kicker">NEXT ACTIONS</div><h2>추천 한 걸음</h2><ol className="recommendation-list">{result.recommendations.map((item, index) => <li key={item}><span>{index + 1}</span>{item}</li>)}</ol>{result.missingElements.length > 0 && <><div className="mini-divider" /><strong className="subheading">빠진 요소</strong><div className="missing-list">{result.missingElements.slice(0, 4).map((item) => <span key={item}>{item}</span>)}</div></>}</SectionCard></div>
       <SectionCard className="result-notice"><span>ⓘ</span><div><strong>이 결과가 평가하는 것</strong><p>이 결과는 프롬프트 구조와 지시 품질을 평가합니다. <b>AI의 최종 답변 품질은 평가하지 않습니다.</b></p></div></SectionCard>
       <div className="bottom-cta"><Button onClick={() => navigate('/evaluate')}>다른 프롬프트도 평가하기</Button><Button secondary onClick={() => navigate(compareUrl)}>친구와 비교하기</Button></div>
     </div>
   );
 }
 
-function ScoreBars({ result }: { result: PromptEvaluationResult }): ReactElement {
-  return <div className="score-bars">{PROMPT_CATEGORIES.map((category) => { const item = result.categories[category.id]; return <div className="score-bar-row" key={category.id}><div className="bar-label"><span>{category.label}</span><b>{item.score}</b></div><div className="bar-track"><span style={{ width: `${item.score}%` }} className={item.score >= 70 ? 'strong' : item.score >= 40 ? 'partial' : 'weak'} /></div></div>; })}</div>;
+function ScoreBars({ result, detailUrl }: { result: PromptEvaluationResult; detailUrl?: (section: string) => string }): ReactElement {
+  return <div className="score-bars">{PROMPT_CATEGORIES.map((category) => { const item = result.categories[category.id]; return <div className="score-bar-row" data-guide-kind={detailUrl ? 'prompt' : undefined} data-guide-section={detailUrl ? `category-${category.id}` : undefined} data-guide-detail={detailUrl ? detailUrl(`category-${category.id}`) : undefined} key={category.id}><div className="bar-label"><span>{category.label}</span><b>{item.score}</b></div><div className="bar-track"><span style={{ width: `${item.score}%` }} className={item.score >= 70 ? 'strong' : item.score >= 40 ? 'partial' : 'weak'} /></div></div>; })}</div>;
+}
+
+function PromptSignalTable({ result }: { result: PromptEvaluationResult }): ReactElement {
+  return <div className="prompt-signal-table" role="table" aria-label="프롬프트 신호 표">
+    <div className="signal-row signal-head" role="row"><span>신호</span><span>점수</span><span>상태</span></div>
+    {PROMPT_CATEGORIES.slice(0, 6).map((category) => {
+      const item = result.categories[category.id];
+      const state = item.score >= 70 ? '강함' : item.score >= 40 ? '부분적' : '보완';
+      return <div className="signal-row" role="row" key={category.id}><span>{item.categoryName}</span><b>{item.score}</b><em className={item.score >= 70 ? 'strong' : item.score >= 40 ? 'partial' : 'weak'}>{state}</em></div>;
+    })}
+  </div>;
 }
 
 function CategoryDetails({ result, shared }: { result: PromptEvaluationResult; shared: boolean }): ReactElement {
@@ -370,6 +572,7 @@ function SajuPage({ navigate, notify }: { navigate: Navigate; notify: Notify }):
   const [result, setResult] = useState<SajuResult | undefined>(() => readStored<SajuResult>(STORAGE_KEYS.saju));
   const [tone, setTone] = useState<SajuTone>('professional');
   const [error, setError] = useState('');
+  const [showMore, setShowMore] = useState(false);
   useEffect(() => {
     if (sharePayload?.k === 'saju') setResult(resultFromSajuShare(sharePayload));
   }, []);
@@ -377,18 +580,19 @@ function SajuPage({ navigate, notify }: { navigate: Navigate; notify: Notify }):
     event.preventDefault();
     const validation = validateSajuInput(input);
     if (!validation.valid) { setError(validation.message ?? '입력을 확인해주세요.'); return; }
-    try { const calculated = calculateSaju(input); setResult(calculated); writeStored(STORAGE_KEYS.saju, calculated); setError(''); notify('간소화된 규칙 기반 사주를 계산했습니다.'); } catch (caught) { setError(caught instanceof Error ? caught.message : '사주 계산에 실패했습니다.'); }
+    try { const calculated = calculateSaju(input); setResult(calculated); setShowMore(false); writeStored(STORAGE_KEYS.saju, calculated); setError(''); notify('사주 흐름을 준비했습니다.'); } catch (caught) { setError(caught instanceof Error ? caught.message : '사주 계산에 실패했습니다.'); }
   };
   const share = result ? shareUrl('/saju', 'share', createSajuShareCode(result)) : '';
+  const detailUrl = (section: string): string => `/detail/saju?section=${encodeURIComponent(section)}${sharePayload?.k === 'saju' ? `&share=${encodeURIComponent(query.get('share') ?? '')}` : ''}`;
   const copyShare = async (): Promise<void> => { if (!share) return; const ok = await copyText(share); notify(ok ? '사주 요약 링크를 복사했습니다.' : '링크 복사에 실패했습니다.'); };
   const saveCard = (): void => { if (!result) return; downloadCanvas(createSajuResultCard(result), 'prompt-score-saju.png'); notify('사주 카드를 PNG로 저장했습니다.'); };
   return (
-    <div className="page-wrap page-content">
+    <div className="page-wrap page-content saju-page">
       <section className="saju-moon-hero" aria-label="사주 분석 안내">
         <div className="saju-moon-copy">
           <span className="saju-hero-kicker">命理 · DATA CONSTELLATION</span>
           <h1>달빛 아래,<br /><em>나의 네 기둥을 읽다</em></h1>
-          <p>사주의 원리를 현대적인 데이터 화면으로 정리합니다. 계산된 사실과 해석, 시기와 한계를 분리해 차분히 살펴보세요.</p>
+          <p>사주의 원리를 현대적인 화면으로 정리합니다. 오행의 균형과 시기의 흐름을 차분히 살펴보세요.</p>
           <div className="saju-hero-tags"><span>음양오행</span><span>사주팔자</span><span>대운·세운</span></div>
         </div>
         <div className="saju-hero-console" aria-hidden="true">
@@ -398,22 +602,24 @@ function SajuPage({ navigate, notify }: { navigate: Navigate; notify: Notify }):
           <div className="console-stat console-stat-bottom"><small>FIVE ELEMENTS</small><b>木 火 土 金 水</b></div>
         </div>
       </section>
-      <PageIntro title="사주를 구조적으로 읽어볼까요?" description="출생 정보와 원하는 주제를 바탕으로 계산 사실, 적용 규칙, 해석, 시기, 한계를 분리해 보여드립니다."><div className="privacy-pill warm"><span>☼</span> 입력은 이 브라우저에만 저장됩니다</div></PageIntro>
+      <PageIntro title="사주를 구조적으로 읽어볼까요?" description="출생 정보와 원하는 주제를 바탕으로 오행의 흐름, 시기, 해석을 차분히 살펴봅니다."><div className="privacy-pill warm"><span>☼</span> 입력은 이 브라우저에만 저장됩니다</div></PageIntro>
+      <GuideCharacter kind="saju" phase={result ? (showMore ? 'more' : 'result') : 'input'} onAction={result && !showMore ? () => setShowMore(true) : undefined} onDetail={(target) => navigate(target.detail)} />
       <div className="saju-layout">
         <SectionCard>
           <form onSubmit={submit} className="saju-form">
             <div className="card-kicker">BIRTH INFORMATION</div>
             <h2>기본 정보를 입력해주세요</h2>
-            <p className="field-note">출생지는 기록과 표시용으로만 사용하며, 현재 계산은 경도 기반 진태양시를 보정하지 않습니다.</p>
+            <p className="field-note">출생지는 표시용으로 사용합니다. 도시·국가와 현지 시간대를 정확히 입력해주세요.</p>
             <label>생년월일<input type="date" value={input.birthDate} onChange={(event) => setInput({ ...input, birthDate: event.target.value })} /></label>
             <div className="field-row"><label>달력<select value={input.calendar} onChange={(event) => setInput({ ...input, calendar: event.target.value as SajuInput['calendar'] })}><option value="solar">양력</option><option value="lunar">음력</option></select></label><label>성별(대운 선택 시)<select value={input.gender} onChange={(event) => setInput({ ...input, gender: event.target.value as SajuInput['gender'] })}><option value="unspecified">선택 안 함</option><option value="female">여성</option><option value="male">남성</option></select></label></div>
             {input.calendar === 'lunar' && <label className="check-label"><input type="checkbox" checked={input.leapMonth} onChange={(event) => setInput({ ...input, leapMonth: event.target.checked })} /> 윤달로 입력</label>}
             <label className="time-label">출생 시간<div className="time-row"><input type="time" value={input.birthTime} disabled={input.timeUnknown} onChange={(event) => setInput({ ...input, birthTime: event.target.value })} /><label className="check-label"><input type="checkbox" checked={input.timeUnknown} onChange={(event) => setInput({ ...input, timeUnknown: event.target.checked })} /> 시간 모름</label></div></label>
-            <div className="field-row"><label>출생지<input value={input.birthPlace} onChange={(event) => setInput({ ...input, birthPlace: event.target.value })} placeholder="서울, 대한민국" /></label><label>시간대<input value={input.timezone} onChange={(event) => setInput({ ...input, timezone: event.target.value })} placeholder="Asia/Seoul" /></label></div>
+            <div className="field-row"><label>출생지<input value={input.birthPlace} onChange={(event) => setInput({ ...input, birthPlace: event.target.value })} placeholder="예: Toronto, Canada" /></label><label>시간대<input list="saju-timezones" value={input.timezone} onChange={(event) => setInput({ ...input, timezone: event.target.value })} placeholder="예: America/Toronto" /></label></div>
+            <datalist id="saju-timezones">{TIMEZONE_OPTIONS.map((timezone) => <option value={timezone} key={timezone} />)}</datalist>
             <label>서머타임<select value={input.daylightSaving} onChange={(event) => setInput({ ...input, daylightSaving: event.target.value as SajuInput['daylightSaving'] })}><option value="auto">시간대 규칙 자동</option><option value="standard">표준시로 고정</option><option value="daylight">서머타임으로 고정</option></select></label>
             <label>읽고 싶은 주제<select value={input.topic} onChange={(event) => setInput({ ...input, topic: event.target.value as SajuReadingTopic })}>{Object.entries(SAJU_TOPIC_LABELS).map(([key, label]) => <option value={key} key={key}>{label}</option>)}</select></label>
             <label>리딩 톤<select value={tone} onChange={(event) => setTone(event.target.value as SajuTone)}><option value="professional">전문적</option><option value="warm">따뜻하게</option><option value="light">가볍게</option><option value="practical">실용적으로</option></select></label>
-            <p className="field-note">리딩 톤은 계산된 차트와 적용 규칙을 바꾸지 않고 표현 방식만 조정합니다.</p>
+            <p className="field-note">리딩 톤은 같은 결과를 더 편한 방식으로 읽도록 표현만 조정합니다.</p>
             {input.topic === 'compatibility' && input.compatibility && <div className="compatibility-fields"><h3>상대 정보</h3><p className="field-note">상대방의 동의와 정확한 정보를 확인한 뒤 입력해주세요.</p><label>상대 생년월일<input type="date" value={input.compatibility.birthDate} onChange={(event) => setInput({ ...input, compatibility: { ...input.compatibility!, birthDate: event.target.value } })} /></label><div className="field-row"><label>상대 달력<select value={input.compatibility.calendar} onChange={(event) => setInput({ ...input, compatibility: { ...input.compatibility!, calendar: event.target.value as SajuInput['calendar'] } })}><option value="solar">양력</option><option value="lunar">음력</option></select></label><label>상대 시간대<input value={input.compatibility.timezone} onChange={(event) => setInput({ ...input, compatibility: { ...input.compatibility!, timezone: event.target.value } })} placeholder="Asia/Seoul" /></label></div>{input.compatibility.calendar === 'lunar' && <label className="check-label"><input type="checkbox" checked={input.compatibility.leapMonth} onChange={(event) => setInput({ ...input, compatibility: { ...input.compatibility!, leapMonth: event.target.checked } })} /> 상대 윤달로 입력</label>}<div className="field-row"><label>상대 성별<select value={input.compatibility.gender} onChange={(event) => setInput({ ...input, compatibility: { ...input.compatibility!, gender: event.target.value as SajuInput['gender'] } })}><option value="unspecified">선택 안 함</option><option value="female">여성</option><option value="male">남성</option></select></label><label>상대 서머타임<select value={input.compatibility.daylightSaving} onChange={(event) => setInput({ ...input, compatibility: { ...input.compatibility!, daylightSaving: event.target.value as SajuInput['daylightSaving'] } })}><option value="auto">시간대 규칙 자동</option><option value="standard">표준시로 고정</option><option value="daylight">서머타임으로 고정</option></select></label></div><label className="time-label">상대 출생 시간<div className="time-row"><input type="time" value={input.compatibility.birthTime} disabled={input.compatibility.timeUnknown} onChange={(event) => setInput({ ...input, compatibility: { ...input.compatibility!, birthTime: event.target.value } })} /><label className="check-label"><input type="checkbox" checked={input.compatibility.timeUnknown} onChange={(event) => setInput({ ...input, compatibility: { ...input.compatibility!, timeUnknown: event.target.checked } })} /> 시간 모름</label></div></label><label>상대 출생지<input value={input.compatibility.birthPlace} onChange={(event) => setInput({ ...input, compatibility: { ...input.compatibility!, birthPlace: event.target.value } })} placeholder="서울, 대한민국" /></label></div>}
             <label>구체적인 질문(선택)<textarea className="saju-question" value={input.question} onChange={(event) => setInput({ ...input, question: event.target.value })} placeholder="예: 다음 분기에 일하는 방식을 어떻게 점검하면 좋을까요?" /></label>
             <details className="saju-context"><summary>가족·개인 배경 추가(선택)</summary><p className="field-note">직접 적은 내용만 참고합니다. 가족·유전·의료 사실은 차트로 추론하지 않습니다.</p><label>가족 맥락<textarea value={input.background.family} onChange={(event) => setInput({ ...input, background: { ...input.background, family: event.target.value } })} placeholder="직접 경험한 대화, 역할, 거리감 등을 적어주세요." /></label><label>개인 맥락<textarea value={input.background.personal} onChange={(event) => setInput({ ...input, background: { ...input.background, personal: event.target.value } })} placeholder="현재 고민이나 생활 맥락을 적어주세요." /></label></details>
@@ -423,7 +629,7 @@ function SajuPage({ navigate, notify }: { navigate: Navigate; notify: Notify }):
             <Button type="submit">사주 계산하기 <span>→</span></Button>
           </form>
         </SectionCard>
-        <SajuResult result={result} share={share} onCopy={copyShare} onCard={saveCard} tone={tone} onFeedback={notify} />
+        <SajuResult result={result} share={share} onCopy={copyShare} onCard={saveCard} tone={tone} onFeedback={notify} showMore={showMore} onShowMore={() => setShowMore(true)} detailUrl={detailUrl} />
       </div>
     </div>
   );
@@ -433,12 +639,13 @@ function resultFromSajuShare(payload: SajuSharePayload): SajuResult {
   return { version: 'saju-v1', inputSummary: '공유된 사주 요약 결과', simplified: true, calendarNote: '공유 링크에는 생년월일·출생 시간·지역을 포함하지 않습니다.', pillars: [], elements: payload.elements, yinYang: payload.yinYang, interpretations: { general: payload.theme, study: '공유된 요약에서는 개인 입력을 다시 계산하지 않습니다.', career: '공유된 요약에서는 개인 입력을 다시 계산하지 않습니다.', money: '공유된 요약에서는 개인 입력을 다시 계산하지 않습니다.', relationship: '공유된 요약에서는 개인 입력을 다시 계산하지 않습니다.', compatibility: '서로 다른 관점을 존중하며 기대치를 맞춰보세요.', reflection: payload.theme, future: '미래를 단정하지 않고 현재의 행동을 관찰해보세요.' }, disclaimer: '사주 결과는 오락과 자기 성찰을 위한 참고용입니다. 재정·교육·의료·진로·관계 결정을 위한 유일한 근거로 사용하지 마세요.' };
 }
 
-function SajuResult({ result, share, onCopy, onCard, tone, onFeedback }: { result?: SajuResult; share: string; onCopy: () => void; onCard: () => void; tone: SajuTone; onFeedback: Notify }): ReactElement {
+function SajuResult({ result, share, onCopy, onCard, tone, onFeedback, showMore, onShowMore, detailUrl }: { result?: SajuResult; share: string; onCopy: () => void; onCard: () => void; tone: SajuTone; onFeedback: Notify; showMore: boolean; onShowMore: () => void; detailUrl: (section: string) => string }): ReactElement {
   if (!result) return <EmptyState title="아직 사주 결과가 없어요" text="왼쪽 정보를 입력하면 오행과 성찰 키워드를 확인할 수 있어요." />;
   const maxElement = Math.max(...ELEMENT_ORDER.map((element) => result.elements[element]), 1);
   const tabs: Array<[keyof SajuResult['interpretations'], string]> = [['general', '종합'], ['study', '학습'], ['career', '커리어'], ['money', '금전'], ['relationship', '관계'], ['compatibility', '궁합'], ['reflection', '성찰'], ['future', '앞으로']];
+  const hasAdvancedResult = Boolean(result.chart);
   return <div className="saju-result-column">
-    <SectionCard className="saju-summary">
+    <SectionCard className="saju-summary" guideKind="saju" guideSection="five-elements" guideDetail={detailUrl('five-elements')}>
       <div className="section-title-row"><div><span className="card-kicker">YOUR SAJU SNAPSHOT</span><h2>오행의 흐름</h2></div>{share && <button className="icon-action" onClick={onCopy}>↗</button>}</div>
       <p className="muted">{result.inputSummary}</p>
       <div className="saju-element-dashboard">
@@ -446,18 +653,21 @@ function SajuResult({ result, share, onCopy, onCard, tone, onFeedback }: { resul
         <div className="element-bars">{ELEMENT_ORDER.map((element) => <div className="element-row" key={element}><span style={{ color: ELEMENT_COLORS[element] }}>{ELEMENT_LABELS[element]}</span><div className="bar-track"><span style={{ width: `${(result.elements[element] / maxElement) * 100}%`, background: ELEMENT_COLORS[element] }} /></div><b>{result.elements[element]}</b></div>)}</div>
       </div>
       <div className="yin-yang"><span>음 {result.yinYang.yin}</span><div><i style={{ width: `${(result.yinYang.yin / Math.max(result.yinYang.yin + result.yinYang.yang, 1)) * 100}%` }} /><b style={{ width: `${(result.yinYang.yang / Math.max(result.yinYang.yin + result.yinYang.yang, 1)) * 100}%` }} /></div><span>양 {result.yinYang.yang}</span></div>
-      <SajuElementGuidance elements={result.elements} maxElement={maxElement} />
+      <SajuElementGuidance elements={result.elements} maxElement={maxElement} detailUrl={detailUrl} />
       <div className="result-actions compact"><Button secondary onClick={onCopy}>↗ 요약 링크</Button><Button secondary onClick={onCard}>↓ 카드 저장</Button></div>
     </SectionCard>
-    {result.compatibility?.primaryGrowthStage && <SajuCompatibilityCard compatibility={result.compatibility} />}
-    {result.persona && <SajuPersonaCard persona={result.persona} result={result} tone={tone} />}
-    {result.everydaySituations && <SajuEverydaySituations situations={result.everydaySituations} result={result} />}
-    {result.questionPrompts && <SajuQuestionPrompts prompts={result.questionPrompts} result={result} />}
-    {result.energyWeather && <SajuEnergyWeather weather={result.energyWeather} result={result} />}
-    <SectionCard><div className="card-kicker">FOUR PILLARS</div><h2>사주 네 기둥</h2>{result.pillars.length ? <div className="pillars-table">{result.pillars.map((pillar) => <div className={!pillar.known ? 'pillar-row unknown' : 'pillar-row'} key={pillar.name}><span>{pillar.name}</span><strong>{pillar.known ? `${pillar.stem}${pillar.branch}` : '미상'}</strong><small>{pillar.known ? `${pillar.stemElement} · ${pillar.branchElement} · ${pillar.yinYang}` : '출생 시간 미상'}</small></div>)}</div> : <p className="muted">공유 링크에는 개인 입력을 포함하지 않아 기둥 표를 표시하지 않습니다.</p>}<p className="field-note">{result.calendarNote}</p></SectionCard>
-    <SectionCard><div className="card-kicker">REFLECTION MENU</div><h2>카테고리별 리딩</h2><div className="interpretation-grid">{tabs.map(([key, label]) => <article key={key}><span>{label}</span><p>{result.interpretations[key]}</p></article>)}</div></SectionCard>
-    {result.chart && result.structuredReadings && <SajuAdvancedResult result={result} />}
-    {result.persona && <SajuFeedback onFeedback={onFeedback} />}
+    {hasAdvancedResult && <SajuTimingCard chart={result.chart!} detailUrl={detailUrl} />}
+    {hasAdvancedResult && !showMore && <SajuNextStep onNext={onShowMore} />}
+    {(!hasAdvancedResult || showMore) && <>
+      {result.compatibility?.primaryGrowthStage && <SajuCompatibilityCard compatibility={result.compatibility} />}
+      {result.persona && <SajuPersonaCard persona={result.persona} result={result} tone={tone} />}
+      {result.everydaySituations && <SajuEverydaySituations situations={result.everydaySituations} result={result} />}
+      {result.questionPrompts && <SajuQuestionPrompts prompts={result.questionPrompts} result={result} />}
+      {result.energyWeather && <SajuEnergyWeather weather={result.energyWeather} result={result} />}
+      <SectionCard guideKind="saju" guideSection="four-pillars" guideDetail={detailUrl('four-pillars')}><div className="card-kicker">FOUR PILLARS</div><h2>사주 네 기둥</h2>{result.pillars.length ? <div className="pillars-table">{result.pillars.map((pillar) => <div className={!pillar.known ? 'pillar-row unknown' : 'pillar-row'} key={pillar.name}><span>{pillar.name}</span><strong>{pillar.known ? `${pillar.stem}${pillar.branch}` : '미상'}</strong><small>{pillar.known ? `${pillar.stemElement} · ${pillar.branchElement} · ${pillar.yinYang}` : '출생 시간 미상'}</small></div>)}</div> : <p className="muted">공유 링크에는 개인 입력을 포함하지 않아 기둥 표를 표시하지 않습니다.</p>}<p className="field-note">{result.calendarNote}</p></SectionCard>
+      <SectionCard guideKind="saju" guideSection="interpretation" guideDetail={detailUrl('interpretation-overall')}><div className="card-kicker">REFLECTION MENU</div><h2>카테고리별 리딩</h2><div className="interpretation-grid">{tabs.map(([key, label]) => <article data-guide-kind="saju" data-guide-section={`interpretation-${key}`} data-guide-detail={detailUrl(`interpretation-${key}`)} key={key}><span>{label}</span><p>{result.interpretations[key]}</p></article>)}</div></SectionCard>
+      {result.persona && <SajuFeedback onFeedback={onFeedback} />}
+    </>}
     <div className="notice warm-notice">☼ {result.disclaimer}</div>
   </div>;
 }
@@ -478,7 +688,7 @@ function SajuCompatibilityCard({ compatibility }: { compatibility: SajuCompatibi
 }
 
 const SAJU_TONE_LEADS: Record<SajuTone, string> = {
-  professional: '차트 근거와 적용 규칙을 먼저 확인한 뒤, 생활 장면에 연결해보세요.',
+  professional: '차트의 흐름을 먼저 확인한 뒤, 생활 장면에 연결해보세요.',
   warm: '지금의 나를 다그치기보다, 이미 가진 리듬과 필요한 휴식을 함께 살펴보세요.',
   light: '정답 찾기보다 “아, 이런 장면이 있지” 싶은 단서를 가볍게 골라보세요.',
   practical: '오늘 관찰할 장면 하나와 바로 해볼 행동 하나만 남겨보세요.',
@@ -488,8 +698,8 @@ function SajuWhyDetails({ evidence, appliedRuleIds, confidence, result }: { evid
   return <details className="saju-why"><summary>왜 이렇게 읽었을까요?</summary><div><p><strong>차트 근거</strong>{evidence.join(' · ')}</p><p><strong>적용 규칙</strong>{appliedRuleIds?.join(' · ') || result.appliedRules?.slice(0, 3).join(' · ') || '공유 요약에는 없음'}</p><p><strong>신뢰도</strong>{confidence}</p><p><strong>계산 방법</strong>{result.calculationMethod?.id ?? '공유 요약에서는 다시 계산하지 않음'} · {result.knowledgeBaseVersion ?? 'legacy'}</p></div></details>;
 }
 
-function SajuElementGuidance({ elements, maxElement }: { elements: SajuResult['elements']; maxElement: number }): ReactElement {
-  return <div className="element-guidance-list"><div className="card-kicker">ELEMENT GUIDANCE</div>{ELEMENT_ORDER.map((element) => <details key={element}><summary><span style={{ color: ELEMENT_COLORS[element] }}>{ELEMENT_LABELS[element]}</span><b>{elements[element]} · {Math.round((elements[element] / maxElement) * 100)}%</b></summary><div><p><strong>상징</strong>{ELEMENT_GUIDANCE[element].meaning}</p><p><strong>표현</strong>{ELEMENT_GUIDANCE[element].expression}</p><p><strong>균형 질문</strong>{ELEMENT_GUIDANCE[element].imbalance}</p><p><strong>작은 제안</strong>{ELEMENT_GUIDANCE[element].suggestion}</p></div></details>)}</div>;
+function SajuElementGuidance({ elements, maxElement, detailUrl }: { elements: SajuResult['elements']; maxElement: number; detailUrl: (section: string) => string }): ReactElement {
+  return <div className="element-guidance-list"><div className="card-kicker">ELEMENT GUIDANCE</div>{ELEMENT_ORDER.map((element) => <details data-guide-kind="saju" data-guide-section={`element-${element}`} data-guide-detail={detailUrl(`element-${element}`)} key={element}><summary><span style={{ color: ELEMENT_COLORS[element] }}>{ELEMENT_LABELS[element]}</span><b>{elements[element]} · {Math.round((elements[element] / maxElement) * 100)}%</b></summary><div><p><strong>상징</strong>{ELEMENT_GUIDANCE[element].meaning}</p><p><strong>표현</strong>{ELEMENT_GUIDANCE[element].expression}</p><p><strong>균형 질문</strong>{ELEMENT_GUIDANCE[element].imbalance}</p><p><strong>작은 제안</strong>{ELEMENT_GUIDANCE[element].suggestion}</p></div></details>)}</div>;
 }
 
 function SajuPersonaCard({ persona, result, tone }: { persona: SajuPersona; result: SajuResult; tone: SajuTone }): ReactElement {
@@ -537,34 +747,25 @@ function ElementConstellation({ elements, maxElement }: { elements: SajuResult['
   </div>;
 }
 
-function SajuReadingSection({ title, readings }: { title: string; readings: SajuReadingItem[] }): ReactElement {
-  return <SectionCard className="saju-reading-section"><div className="card-kicker">RULE-BASED READING</div><h2>{title}</h2><div className="saju-reading-items">{readings.map((reading) => <details key={reading.id}><summary><span>{reading.title}</span><b>{reading.confidence} 신뢰도</b></summary><div className="saju-reading-detail"><p><strong>차트 사실</strong>{reading.facts.join(' · ')}</p><p><strong>적용 규칙</strong>{reading.appliedRuleIds.join(' · ')}</p><p><strong>출처</strong>{reading.sourceReferences?.join(' · ') || '계산 방법 패널 참고'}</p><p><strong>해석</strong>{reading.interpretation}</p><p><strong>시기</strong>{reading.timing}</p><p><strong>실천 팁</strong>{reading.advice}</p><small>한계 · {reading.limitations.join(' ')}</small></div></details>)}</div></SectionCard>;
+function SajuNextStep({ onNext }: { onNext: () => void }): ReactElement {
+  return <section className="saju-next-step" aria-label="다음 사주 정보 안내"><span className="card-kicker">NEXT READING</span><p>오행과 시기 흐름을 확인했어요. 다음 정보로 넘어가볼까요?</p><button type="button" onClick={onNext}>다음 정보 보기 <span>→</span></button></section>;
 }
 
-function SajuAdvancedResult({ result }: { result: SajuResult }): ReactElement {
-  const chart = result.chart;
-  const structured = result.structuredReadings;
-  if (!chart || !structured) return <></>;
-  const topicSections: Array<[SajuReadingKey, string]> = [
-    ['overall', '사주 구조와 전체 흐름'],
-    ['personality', '성향과 행동 패턴'],
-    ['career', '커리어·업무 환경'],
-    ['money', '돈·사업 경향'],
-    ['relationships', '사랑·결혼·대인관계'],
-    ['familyPatterns', '가족 관계와 반복 패턴'],
-    ['healthLifestyle', '건강이 아닌 생활 리듬'],
-    ['futureTrends', '앞으로의 기회와 전환'],
-    ['daewoon', '대운'],
-    ['compatibility', '두 사람 궁합 비교'],
-    ['question', '사용자 질문'],
-  ];
-  return <>
-    <SectionCard className="saju-facts-card"><div className="card-kicker">CALCULATED CHART FACTS</div><h2>계산된 차트</h2><div className="saju-fact-grid"><div><span>일간</span><strong>{chart.dayMaster.stem} · {chart.dayMaster.element}</strong></div><div><span>일간 강약</span><strong>{chart.dayMasterStrength}</strong></div><div><span>월령</span><strong>{chart.seasonalInfluence.season} · {chart.seasonalInfluence.element}</strong></div><div><span>오프셋</span><strong>UTC {chart.utcOffsetMinutes >= 0 ? '+' : ''}{chart.utcOffsetMinutes / 60}</strong></div><div><span>선택 주제</span><strong>{SAJU_TOPIC_LABELS[result.selectedTopic ?? 'overall']}</strong></div></div><div className="saju-advanced-pillars">{chart.pillars.map((pillar) => <article key={pillar.name}><span>{pillar.name}</span><strong>{pillar.known ? `${pillar.stem}${pillar.branch}` : '미상'}</strong><p>십신 {pillar.visibleTenGod ?? '미상'} · 12운성 {pillar.growthStage ?? '미상'}</p><small>장간 {pillar.hiddenStems?.map((hidden) => `${hidden.stem}(${hidden.tenGod})`).join(' · ') || '미상'}</small></article>)}</div><p className="field-note">{result.calendarNote}</p></SectionCard>
-    <SectionCard className="saju-shinsal-card"><div className="card-kicker">SHINSAL · SCHOOL VARIANTS</div><h2>신살 지표</h2><div className="saju-indicator-grid">{chart.indicators.map((indicator) => <article key={indicator.id} className={indicator.present ? 'is-present' : ''}><div><strong>{indicator.label}</strong><span>{indicator.present ? '감지됨' : '감지되지 않음'}</span></div><p>{indicator.note}</p><small>{indicator.method} 신뢰도 {indicator.confidence}</small></article>)}</div></SectionCard>
-    <SectionCard className="saju-timing-card"><div className="card-kicker">TIMING TABLE</div><h2>대운·세운·월운</h2><div className="saju-timing-columns"><div><h3>대운</h3>{chart.daewoon.length ? <ul className="saju-data-list">{chart.daewoon.map((cycle) => <li key={cycle.sequence}><strong>{cycle.startAge}~{cycle.endAge}세 · {cycle.pillar}</strong><span>{cycle.direction} · {cycle.note}</span></li>)}</ul> : <p className="muted">성별 미지정으로 대운 순·역행을 계산하지 않았습니다.</p>}</div><div><h3>세운</h3><ul className="saju-data-list">{chart.annualLuck.map((luck) => <li key={luck.label}><strong>{luck.label} · {luck.pillar}</strong><span>{luck.note}</span></li>)}</ul></div><div><h3>월운</h3><ul className="saju-data-list">{chart.monthlyLuck.slice(0, 6).map((luck) => <li key={luck.label}><strong>{luck.label} · {luck.pillar}</strong><span>{luck.note}</span></li>)}</ul></div></div></SectionCard>
-    {topicSections.map(([key, title]) => <SajuReadingSection key={key} title={title} readings={structured.readings[key]} />)}
-    <SectionCard className="saju-method-card"><div className="card-kicker">METHOD & LIMITATIONS</div><h2>계산 방법과 한계</h2><p className="method-version">지식베이스 {result.knowledgeBaseVersion ?? 'legacy'} · 적용 규칙 {result.appliedRules?.join(' · ') || '공유 요약에는 없음'}</p>{result.calculationMethod && <details><summary>계산 방법 펼치기</summary><div className="saju-method-detail"><p>{result.calculationMethod.sourceReferences.join(' · ')}</p><ul>{result.calculationMethod.assumptions.map((assumption) => <li key={assumption}>{assumption}</li>)}</ul></div></details>}<ul className="saju-uncertainties">{structured.uncertainties.map((uncertainty) => <li key={uncertainty}>{uncertainty}</li>)}</ul></SectionCard>
-  </>;
+function SajuTimingCard({ chart, detailUrl }: { chart: NonNullable<SajuResult['chart']>; detailUrl: (section: string) => string }): ReactElement {
+  return <SectionCard className="saju-timing-card"><div className="card-kicker">TIMING</div><h2>대운·세운·월운</h2><p className="muted">지금의 흐름을 살펴보는 참고용 시간표입니다.</p><div className="saju-timing-columns"><div data-guide-kind="saju" data-guide-section="daewoon" data-guide-detail={detailUrl('daewoon')}><h3>대운</h3>{chart.daewoon.length ? <ul className="saju-data-list">{chart.daewoon.map((cycle) => <li key={cycle.sequence}><strong>{cycle.startAge}~{cycle.endAge}세 · {cycle.pillar}</strong><span>{cycle.direction} · {cycle.note}</span></li>)}</ul> : <p className="muted">성별을 선택하면 대운의 순·역행을 함께 볼 수 있어요.</p>}</div><div data-guide-kind="saju" data-guide-section="seun" data-guide-detail={detailUrl('seun')}><h3>세운</h3><ul className="saju-data-list">{chart.annualLuck.map((luck) => <li key={luck.label}><strong>{luck.label} · {luck.pillar}</strong><span>{luck.note}</span></li>)}</ul></div><div data-guide-kind="saju" data-guide-section="monthly-luck" data-guide-detail={detailUrl('monthly-luck')}><h3>월운</h3><ul className="saju-data-list">{chart.monthlyLuck.slice(0, 6).map((luck) => <li key={luck.label}><strong>{luck.label} · {luck.pillar}</strong><span>{luck.note}</span></li>)}</ul></div></div></SectionCard>;
+}
+
+const TAROT_SYMBOLS: Record<TarotCard['arcana'], string> = { Major: '✦', Wands: '◇', Cups: '◒', Swords: '⚔', Pentacles: '⬡' };
+const TAROT_ARCANA_LABELS: Record<TarotCard['arcana'], string> = { Major: 'MAJOR', Wands: 'WANDS', Cups: 'CUPS', Swords: 'SWORDS', Pentacles: 'PENTACLES' };
+const TAROT_ASSET_PATH = '/images/tarot';
+const tarotCardIndex = (card: TarotCard): number => TAROT_CARDS.findIndex(({ id }) => id === card.id);
+const tarotCardStyle = (index: number): CSSProperties => ({ '--card-hue': `${(index * 17 + 188) % 360}`, '--card-index': `${index + 1}` } as CSSProperties);
+
+function TarotPortalHero({ mode }: { mode: 'single' | 'compatibility' }): ReactElement {
+  return <section className="tarot-portal-hero" aria-label="AI 타로 아르카나 안내">
+    <div><span className="tarot-hero-kicker">NEURAL ARCANA · 78 NODES</span><h2>별과 데이터 사이,<br /><em>한 장의 신호</em></h2><p>{mode === 'compatibility' ? '두 사람의 에너지가 어떤 카드 프로토콜로 만나는지 살펴봅니다.' : '전통 상징을 AI 시스템의 언어로 각색해 오늘의 행동으로 번역해보세요.'}</p></div>
+    <div className="tarot-portal" aria-hidden="true"><span>✦</span><i /><i /><b>MAJOR<br />ARCANA</b><small>01 · 78</small></div>
+  </section>;
 }
 
 function TarotPage({ navigate, notify }: { navigate: Navigate; notify: Notify }): ReactElement {
@@ -581,6 +782,7 @@ function TarotPage({ navigate, notify }: { navigate: Navigate; notify: Notify })
   const draw = (): void => {
     const next = mode === 'compatibility' ? drawTarotCompatibility(createTarotSeed()) : drawTarot(createTarotSeed(), spread, category);
     setReading(next);
+    writeStored(STORAGE_KEYS.tarotCurrent, next);
     if (mode === 'single') writeStored(STORAGE_KEYS.tarot, next);
     setStatus(mode === 'compatibility' ? '두 사람 궁합 카드를 펼쳤습니다.' : '새 카드를 뽑았습니다.');
     notify(mode === 'compatibility' ? '나·상대·관계의 3장 궁합 리딩을 만들었습니다.' : '시드를 저장해 같은 결과를 다시 볼 수 있어요.');
@@ -588,15 +790,84 @@ function TarotPage({ navigate, notify }: { navigate: Navigate; notify: Notify })
   };
   const code = mode === 'single' && reading ? createTarotShareCode(reading.seed, reading.spread, reading.category) : '';
   const url = code ? shareUrl('/tarot', 'tarot', code) : '';
+  const detailUrl = (section: string, cardId?: string): string => `/detail/tarot?section=${encodeURIComponent(section)}${cardId ? `&card=${encodeURIComponent(cardId)}` : ''}${code ? `&tarot=${encodeURIComponent(code)}` : ''}`;
   const share = async (): Promise<void> => { if (!url) return; const ok = await copyText(url); setStatus(ok ? '타로 공유 링크를 복사했어요.' : '링크 복사에 실패했어요.'); notify(ok ? '타로 공유 링크를 복사했습니다.' : '링크 복사에 실패했습니다.'); };
   const card = async (): Promise<void> => { if (!reading) return; const outcome = await shareCanvas(createTarotCard(reading), 'Prompt Score 타로', reading.summary); setStatus(outcome === 'shared' ? '공유 시트를 열었어요.' : 'PNG를 저장했어요.'); };
   const firstName = compatibilityNames.first.trim() || '나';
   const secondName = compatibilityNames.second.trim() || '상대방';
-  return <div className="page-wrap page-content"><PageIntro eyebrow="Tarot · relationship reading" title={mode === 'compatibility' ? '두 사람의 흐름을 카드로 살펴볼까요?' : '오늘의 카드를 한 장 뽑아볼까요?'} description={mode === 'compatibility' ? '나의 에너지·상대의 에너지·관계의 흐름을 3장으로 봅니다. 결과는 오락과 자기 성찰을 위한 참고용이에요.' : '정방향과 역방향을 포함한 78장 덱을 사용합니다. 버튼을 누르는 순간 시드가 만들어지고, 같은 링크에서 같은 결과를 확인할 수 있어요.'}><div className="privacy-pill mint"><span>✧</span> 결과는 시드로 재현 가능</div></PageIntro><div className="tarot-layout"><SectionCard className="tarot-controls"><div className="card-kicker">DRAW SETTINGS</div><h2>리딩을 고르세요</h2><div className="segmented tarot-mode-switch"><button className={mode === 'single' ? 'selected' : ''} onClick={() => changeMode('single')}>개인 리딩</button><button className={mode === 'compatibility' ? 'selected' : ''} onClick={() => changeMode('compatibility')}>두 사람 궁합</button></div>{mode === 'single' ? <><div className="segmented"><button className={spread === 1 ? 'selected' : ''} onClick={() => setSpread(1)}>한 장</button><button className={spread === 3 ? 'selected' : ''} onClick={() => setSpread(3)}>세 장</button></div><label>관심 카테고리<select value={category} onChange={(event) => setCategory(event.target.value as TarotCategory)}>{Object.entries(TAROT_CATEGORY_LABELS).map(([key, label]) => <option value={key} key={key}>{label}</option>)}</select></label></> : <><p className="field-note tarot-compatibility-hint">이름은 결과 화면에만 표시되며 저장하거나 공유하지 않습니다.</p><div className="field-row tarot-name-row"><label>나<input value={compatibilityNames.first} onChange={(event) => setCompatibilityNames({ ...compatibilityNames, first: event.target.value })} placeholder="나" /></label><label>상대<input value={compatibilityNames.second} onChange={(event) => setCompatibilityNames({ ...compatibilityNames, second: event.target.value })} placeholder="상대방" /></label></div><div className="tarot-compatibility-note">3장 · 나의 에너지 · 상대의 에너지 · 관계의 흐름</div></>}<Button onClick={draw}>카드 뽑기 <span>✧</span></Button><div className="tarot-mini-note">78장 표준 덱 · AI 생성 해석 없음</div></SectionCard><div className="tarot-result">{reading ? <><div className="tarot-result-head"><div><span className="card-kicker">{reading.categoryLabel} READING</span><h2>{mode === 'compatibility' ? `${firstName} · ${secondName} · 관계 흐름` : reading.spread === 1 ? '지금의 한 장' : '현재 · 장애물 · 다음 행동'}</h2></div><div className="result-actions compact">{mode === 'single' && <Button secondary onClick={share}>↗ 링크 복사</Button>}<Button secondary onClick={card}>▣ {mode === 'compatibility' ? '궁합 카드 저장' : '카드 저장'}</Button></div></div><div className={`tarot-cards count-${reading.cards.length}`}>{reading.cards.map((item) => <TarotVisual key={`${item.card.id}-${item.position}`} item={item} />)}</div><SectionCard className="tarot-summary"><span className="eyebrow">오늘의 문장</span><p>{reading.summary}</p><div className="mini-divider" /><p className="muted">{TAROT_DISCLAIMER}</p></SectionCard>{status && <p className="success-text">{status}</p>}</> : <EmptyState title={mode === 'compatibility' ? '두 사람의 카드를 기다리고 있어요' : '카드를 기다리고 있어요'} text={mode === 'compatibility' ? '이름을 적고 궁합 카드를 뽑아보세요.' : '설정을 고른 뒤 카드를 뽑아보세요.'} button="카드 뽑기" onClick={draw} />}</div></div></div>;
+  return <div className="page-wrap page-content tarot-page"><TarotPortalHero mode={mode} /><PageIntro eyebrow="Tarot · neural arcana" title={mode === 'compatibility' ? '두 사람의 흐름을 카드 프로토콜로 볼까요?' : '오늘의 신호 카드를 한 장 뽑아볼까요?'} description={mode === 'compatibility' ? '나의 에너지·상대의 에너지·관계의 흐름을 3장으로 봅니다. 결과는 오락과 자기 성찰을 위한 참고용이에요.' : '정방향과 역방향을 포함한 AI 아르카나 78장 덱입니다. 전통 상징을 데이터·시스템 은유로 각색했어요.'}><div className="privacy-pill mint"><span>✧</span> 결과는 시드로 재현 가능</div></PageIntro><GuideCharacter kind="tarot" active={Boolean(reading)} onDetail={(target) => navigate(target.detail)} /><div className="tarot-layout"><SectionCard className="tarot-controls"><div className="card-kicker">DRAW SETTINGS</div><h2>리딩을 고르세요</h2><div className="segmented tarot-mode-switch"><button className={mode === 'single' ? 'selected' : ''} onClick={() => changeMode('single')}>개인 리딩</button><button className={mode === 'compatibility' ? 'selected' : ''} onClick={() => changeMode('compatibility')}>두 사람 궁합</button></div>{mode === 'single' ? <><div className="segmented"><button className={spread === 1 ? 'selected' : ''} onClick={() => setSpread(1)}>한 장</button><button className={spread === 3 ? 'selected' : ''} onClick={() => setSpread(3)}>세 장</button></div><label>관심 카테고리<select value={category} onChange={(event) => setCategory(event.target.value as TarotCategory)}>{Object.entries(TAROT_CATEGORY_LABELS).map(([key, label]) => <option value={key} key={key}>{label}</option>)}</select></label></> : <><p className="field-note tarot-compatibility-hint">이름은 결과 화면에만 표시되며 저장하거나 공유하지 않습니다.</p><div className="field-row tarot-name-row"><label>나<input value={compatibilityNames.first} onChange={(event) => setCompatibilityNames({ ...compatibilityNames, first: event.target.value })} placeholder="나" /></label><label>상대<input value={compatibilityNames.second} onChange={(event) => setCompatibilityNames({ ...compatibilityNames, second: event.target.value })} placeholder="상대방" /></label></div><div className="tarot-compatibility-note">3장 · 나의 에너지 · 상대의 에너지 · 관계의 흐름</div></>}<Button onClick={draw}>카드 뽑기 <span>✧</span></Button><div className="tarot-mini-note">NEURAL ARCANA · 78장 전체 카드 · 규칙 기반 리딩</div></SectionCard><div className="tarot-result">{reading ? <><div className="tarot-result-head"><div><span className="card-kicker">{reading.categoryLabel} READING</span><h2>{mode === 'compatibility' ? `${firstName} · ${secondName} · 관계 흐름` : reading.spread === 1 ? '지금의 한 장' : '현재 · 장애물 · 다음 행동'}</h2></div><div className="result-actions compact">{mode === 'single' && <Button secondary onClick={share}>↗ 링크 복사</Button>}<Button secondary onClick={card}>▣ {mode === 'compatibility' ? '궁합 카드 저장' : '카드 저장'}</Button></div></div><div className={`tarot-cards count-${reading.cards.length}`} data-guide-kind="tarot" data-guide-section="card-spread" data-guide-detail={detailUrl('card-spread')}>{reading.cards.map((item, index) => <TarotVisual key={`${item.card.id}-${item.position}`} item={item} detailUrl={(cardId) => detailUrl(`card-${cardId}`, cardId)} />)}</div><TarotSpreadTable reading={reading} detailUrl={detailUrl} /><SectionCard className="tarot-summary" guideKind="tarot" guideSection="final-interpretation" guideDetail={detailUrl('final-interpretation')}><span className="eyebrow">오늘의 문장</span><p>{reading.summary}</p><div className="mini-divider" /><p className="muted">{TAROT_DISCLAIMER}</p></SectionCard>{status && <p className="success-text">{status}</p>}</> : <EmptyState title={mode === 'compatibility' ? '두 사람의 카드를 기다리고 있어요' : '카드를 기다리고 있어요'} text={mode === 'compatibility' ? '이름을 적고 궁합 카드를 뽑아보세요.' : '설정을 고른 뒤 카드를 뽑아보세요.'} button="카드 뽑기" onClick={draw} />}</div></div><TarotDeckGallery /></div>;
 }
 
-function TarotVisual({ item }: { item: TarotReading['cards'][number] }): ReactElement {
-  return <article className="tarot-card-wrap"><div className={item.reversed ? 'tarot-card reversed' : 'tarot-card'}><span className="tarot-corner">✦</span><div className="tarot-symbol">{item.card.arcana === 'Major' ? '✧' : item.card.arcana === 'Cups' ? '◡' : item.card.arcana === 'Swords' ? '⚔' : item.card.arcana === 'Wands' ? '♢' : '◈'}</div><strong>{item.card.name}</strong><small>{item.reversed ? 'REVERSED · 역방향' : 'UPRIGHT · 정방향'}</small><div className="tarot-keywords">{(item.reversed ? item.card.reversedKeywords : item.card.uprightKeywords).map((keyword) => <span key={keyword}>{keyword}</span>)}</div></div><div className="tarot-reading"><span className="card-kicker">{item.position}</span><p>{item.interpretation}</p><strong>ADVICE</strong><p>{item.advice}</p><strong>CHECK</strong><p>{item.warning}</p></div></article>;
+function TarotVisual({ item, detailUrl }: { item: TarotReading['cards'][number]; detailUrl?: (cardId: string) => string }): ReactElement {
+  const index = tarotCardIndex(item.card);
+  const node = String(index + 1).padStart(2, '0');
+  return <article className="tarot-card-wrap" data-guide-kind={detailUrl ? 'tarot' : undefined} data-guide-section={detailUrl ? `card-${item.card.id}` : undefined} data-guide-detail={detailUrl ? detailUrl(item.card.id) : undefined}><div className={`${item.reversed ? 'tarot-card reversed' : 'tarot-card'} tarot-card-${item.card.arcana.toLowerCase()}`} style={tarotCardStyle(index)}><img className="tarot-card-art" src={`${TAROT_ASSET_PATH}/${item.card.id}.png`} alt="" aria-hidden="true" /><div className="tarot-card-hud"><span>NODE {node} / 78</span><em>{TAROT_ARCANA_LABELS[item.card.arcana]}</em></div><span className="tarot-corner">✦</span><div className="tarot-symbol"><span>{TAROT_SYMBOLS[item.card.arcana]}</span><i /><small>NEURAL<br />ARCANA</small></div><strong>{item.card.name}</strong><small>{item.reversed ? 'REVERSED · 역방향' : 'UPRIGHT · 정방향'}</small><div className="tarot-ai-tag">{item.card.aiArchetype ?? 'NEURAL ARCHETYPE'}</div><div className="tarot-keywords">{(item.reversed ? item.card.reversedKeywords : item.card.uprightKeywords).map((keyword) => <span key={keyword}>{keyword}</span>)}</div></div><div className="tarot-reading"><span className="card-kicker">{item.position}</span><p>{item.interpretation}</p><strong>ADVICE</strong><p>{item.advice}</p><strong>CHECK</strong><p>{item.warning}</p></div></article>;
+}
+
+function TarotSpreadTable({ reading, detailUrl }: { reading: TarotReading; detailUrl?: (section: string, cardId?: string) => string }): ReactElement {
+  return <div className="tarot-spread-table" role="table" aria-label="타로 스프레드 표" data-guide-kind={detailUrl ? 'tarot' : undefined} data-guide-section={detailUrl ? 'spread-summary' : undefined} data-guide-detail={detailUrl ? detailUrl('spread-summary') : undefined}><div className="tarot-spread-row spread-head" role="row"><span>위치</span><span>카드</span><span>방향</span><span>키워드</span></div>{reading.cards.map((item) => <div className="tarot-spread-row" role="row" key={`${item.card.id}-${item.position}`}><span>{item.position}</span><strong>{item.card.name}</strong><b>{item.reversed ? '역방향' : '정방향'}</b><em>{(item.reversed ? item.card.reversedKeywords : item.card.uprightKeywords).slice(0, 2).join(' · ')}</em></div>)}</div>;
+}
+
+function TarotDeckGallery(): ReactElement {
+  const [filter, setFilter] = useState<'all' | TarotCard['arcana']>('all');
+  const filters: Array<{ key: 'all' | TarotCard['arcana']; label: string }> = [
+    { key: 'all', label: '전체 78' },
+    { key: 'Major', label: '메이저 22' },
+    { key: 'Wands', label: '완드 14' },
+    { key: 'Cups', label: '컵 14' },
+    { key: 'Swords', label: '소드 14' },
+    { key: 'Pentacles', label: '펜타클 14' },
+  ];
+  const cards = filter === 'all' ? TAROT_CARDS : TAROT_CARDS.filter((card) => card.arcana === filter);
+  return <SectionCard className="tarot-deck-gallery"><div className="section-title-row"><div><span className="card-kicker">AI DECK INDEX · 78 NODES</span><h2>전체 아르카나를 탐색하세요</h2></div><span className="small-note">{cards.length} / 78 loaded</span></div><p className="tarot-deck-intro">각 카드는 고유한 AI 아키타입과 신호 키워드를 갖습니다. 전통 상징은 데이터 흐름·에이전트·시스템 상태의 언어로 다시 읽힙니다.</p><div className="tarot-deck-filters" role="tablist" aria-label="타로 덱 필터">{filters.map((item) => <button key={item.key} className={filter === item.key ? 'selected' : ''} role="tab" aria-selected={filter === item.key} onClick={() => setFilter(item.key)}>{item.label}</button>)}</div><div className="tarot-deck-grid">{cards.map((card) => <TarotDeckTile key={card.id} card={card} />)}</div></SectionCard>;
+}
+
+function TarotDeckTile({ card }: { card: TarotCard }): ReactElement {
+  const index = tarotCardIndex(card);
+  return <article className={`tarot-deck-tile tarot-deck-${card.arcana.toLowerCase()}`} style={tarotCardStyle(index)} aria-label={`${card.name} · ${card.aiArchetype ?? 'NEURAL ARCHETYPE'}`}><img className="tarot-card-art" src={`${TAROT_ASSET_PATH}/${card.id}.png`} alt="" aria-hidden="true" loading="lazy" /><div className="tarot-deck-hud"><span>{String(index + 1).padStart(2, '0')}</span><em>{TAROT_ARCANA_LABELS[card.arcana]}</em></div><div className="tarot-deck-core" aria-hidden="true"><i /><span>{TAROT_SYMBOLS[card.arcana]}</span><b>{String(index + 1).padStart(2, '0')}</b></div><strong>{card.name}</strong><small>{card.aiArchetype ?? 'NEURAL ARCHETYPE'}</small><div className="tarot-deck-keywords">{card.uprightKeywords.slice(0, 2).map((keyword) => <span key={keyword}>{keyword}</span>)}</div></article>;
+}
+
+function PromptDetailPage({ navigate }: { navigate: Navigate }): ReactElement {
+  const query = new URLSearchParams(window.location.search);
+  const shared = query.get('share') ? decodeSharePayload(query.get('share') ?? '') : null;
+  const result = shared?.k === 'prompt' ? resultFromPromptShareSummary(shared) : readStored<PromptEvaluationResult>(STORAGE_KEYS.prompt);
+  if (!result) return <EmptyState title="상세 설명을 열 수 없어요" text="먼저 프롬프트를 평가한 뒤 다시 시도해주세요." button="평가하러 가기" onClick={() => navigate('/evaluate')} />;
+  const section = query.get('section') ?? 'score-summary';
+  const categoryId = PROMPT_CATEGORIES.find((category) => category.id === section.replace(/^category-/u, ''))?.id;
+  const category = categoryId ? result.categories[categoryId] : undefined;
+  const score = category?.score ?? result.overallScore;
+  const title = category?.categoryName ?? (section === 'evidence' ? '감지된 근거' : section === 'improvements' || section === 'suggestions' ? '개선 기회와 다음 행동' : '전체 점수');
+  const evidence = category?.evidence ?? result.evidence;
+  const challenge = result.challengeId ? getChallenge(result.challengeId) : undefined;
+  const rewrittenPrompt = challenge?.strongPrompt ?? '목표: 원하는 결과를 한 문장으로 정의하기\n상황: 대상과 현재 맥락 적기\n조건: 지켜야 할 기준과 출력 형식 정하기\n검증: 결과를 확인할 기준 한 가지 적기';
+  return <div className="page-wrap page-content detail-page prompt-detail-page"><button className="detail-back" type="button" onClick={() => navigate('/results')}>← 결과로 돌아가기</button><div className="detail-header"><span className="detail-kicker">PROMPT EXPLANATION</span><h1>{title}</h1><p>선택한 신호가 점수에 어떤 영향을 주었는지, 다음 프롬프트에서 어떻게 활용할지 정리했습니다.</p></div><div className="prompt-detail-grid"><SectionCard className="detail-score-panel"><span className="detail-label">선택된 점수</span><strong>{score}<small>/100</small></strong><h2>{category?.level ?? result.level} · {category?.categoryName ?? '전체 구조'}</h2><p>{category?.why ?? `전체 점수 ${result.overallScore}점은 목표·맥락·출력 조건을 포함한 프롬프트 구조를 종합한 결과입니다.`}</p></SectionCard><SectionCard className="detail-evidence-panel"><span className="detail-label">감지된 근거</span><h2>왜 이 점수가 나왔을까요?</h2>{evidence.length ? <div className="detail-evidence-list">{evidence.slice(0, 10).map((item, index) => <div key={`${item.ruleId}-${index}`}><strong>{item.signal}</strong><p>{item.text}</p></div>)}</div> : <p className="muted">이 공유 결과에는 원문 근거가 포함되지 않았습니다.</p>}</SectionCard><SectionCard className="detail-improvement-panel"><span className="detail-label">약점과 개선</span><h2>다음에 바꿔볼 점</h2>{category?.missingElements.length ? <ul className="detail-list">{category.missingElements.map((item) => <li key={item}>{item}</li>)}</ul> : <ul className="detail-list">{result.weaknesses.slice(0, 3).map((item) => <li key={item.categoryId}>{item.categoryName}: {item.tip}</li>)}</ul>}<div className="detail-divider" /><strong>추천 행동</strong><ol className="detail-list ordered">{result.recommendations.slice(0, 4).map((item) => <li key={item}>{item}</li>)}</ol></SectionCard><SectionCard className="detail-rewrite-panel"><span className="detail-label">다시 써보기</span><h2>개선된 프롬프트 예시</h2><pre>{rewrittenPrompt}</pre><p className="detail-note">다음 질문에서는 목표·상황·조건·검증 중 하나만 더 명확하게 적어도 점검하기 쉬워집니다.</p></SectionCard></div></div>;
+}
+
+const SAJU_DETAIL_LABELS: Record<string, string> = { 'five-elements': '오행의 흐름', 'four-pillars': '사주 네 기둥', daewoon: '대운 흐름', seun: '세운 흐름', 'monthly-luck': '월운 흐름', interpretation: '카테고리별 리딩' };
+
+function SajuDetailPage({ navigate }: { navigate: Navigate }): ReactElement {
+  const query = new URLSearchParams(window.location.search);
+  const shared = query.get('share') ? decodeSharePayload(query.get('share') ?? '') : null;
+  const result = shared?.k === 'saju' ? resultFromSajuShare(shared) : readStored<SajuResult>(STORAGE_KEYS.saju);
+  if (!result) return <EmptyState title="상세 설명을 열 수 없어요" text="먼저 사주를 계산한 뒤 다시 시도해주세요." button="사주로 돌아가기" onClick={() => navigate('/saju')} />;
+  const section = query.get('section') ?? 'five-elements';
+  const element = section.startsWith('element-') ? section.slice('element-'.length) as FiveElement : undefined;
+  const interpretationKey = section.startsWith('interpretation-') ? section.slice('interpretation-'.length) : undefined;
+  const title = element ? `${ELEMENT_LABELS[element] ?? element}를 읽는 방법` : interpretationKey ? `${SAJU_TOPIC_LABELS[interpretationKey as SajuReadingTopic] ?? '사주'} 리딩` : SAJU_DETAIL_LABELS[section] ?? '사주 상세 설명';
+  const chart = result.chart;
+  const timingItems = section === 'daewoon' ? chart?.daewoon.map((item) => `${item.startAge}~${item.endAge}세 · ${item.pillar} · ${item.direction}`) : section === 'seun' ? chart?.annualLuck.map((item) => `${item.label} · ${item.pillar}`) : section === 'monthly-luck' ? chart?.monthlyLuck.slice(0, 6).map((item) => `${item.label} · ${item.pillar}`) : undefined;
+  return <div className="page-wrap page-content detail-page saju-detail-page"><button className="detail-back" type="button" onClick={() => navigate('/saju')}>← 사주 결과로 돌아가기</button><div className="detail-header"><span className="detail-kicker">SAJU · QUIET READING</span><h1>{title}</h1><p>차트의 단서를 생활 장면과 계획 점검의 언어로 풀어봅니다. 정해진 미래를 말하는 페이지가 아닙니다.</p></div>{element ? <div className="saju-detail-grid"><SectionCard className="saju-detail-feature"><span className="detail-label">선택한 오행</span><strong className="saju-element-mark" style={{ color: ELEMENT_COLORS[element] }}>{ELEMENT_LABELS[element]}</strong><h2>{ELEMENT_GUIDANCE[element]?.meaning}</h2><p>{ELEMENT_GUIDANCE[element]?.expression}</p></SectionCard><SectionCard><span className="detail-label">생활에서 살펴볼 점</span><h2>균형 질문</h2><p>{ELEMENT_GUIDANCE[element]?.imbalance}</p><div className="detail-action-box"><strong>작은 제안</strong><p>{ELEMENT_GUIDANCE[element]?.suggestion}</p></div></SectionCard><SectionCard className="saju-detail-bars"><span className="detail-label">현재 분포</span>{ELEMENT_ORDER.map((item) => <div className="detail-bar-row" key={item}><span>{ELEMENT_LABELS[item]}</span><div><i style={{ width: `${(result.elements[item] / Math.max(...ELEMENT_ORDER.map((value) => result.elements[value]), 1)) * 100}%`, background: ELEMENT_COLORS[item] }} /></div><b>{result.elements[item]}</b></div>)}</SectionCard></div> : interpretationKey ? <SectionCard className="saju-detail-reading"><span className="detail-label">생활 언어로 읽기</span><h2>{SAJU_TOPIC_LABELS[interpretationKey as SajuReadingTopic] ?? '사주 리딩'}</h2><p>{result.interpretations[interpretationKey as keyof SajuResult['interpretations']] ?? result.interpretations.general}</p><div className="detail-action-box"><strong>돌아볼 질문</strong><p>이 해석이 내 일상에서 어떤 장면으로 나타나는지 한 가지 사례를 적어보세요.</p></div></SectionCard> : timingItems ? <SectionCard className="saju-detail-timing"><span className="detail-label">선택한 시간표</span><h2>{SAJU_DETAIL_LABELS[section]}</h2><ul className="detail-list">{timingItems.length ? timingItems.map((item) => <li key={item}>{item}</li>) : <li>성별 미지정으로 대운을 계산하지 않았습니다.</li>}</ul><p className="detail-note">이 흐름은 계획을 점검하는 상징적 참고 자료이며, 사건이나 결과를 보장하지 않습니다.</p></SectionCard> : <div className="saju-detail-grid"><SectionCard className="saju-detail-feature"><span className="detail-label">오행</span><h2>전체 흐름을 한눈에 보기</h2><p>{result.interpretations.general}</p></SectionCard><SectionCard><span className="detail-label">일상 연결</span><h2>이 결과를 써보는 방법</h2><p>지금의 생활에서 에너지가 모이는 일과 회복이 필요한 일을 각각 하나씩 적어보세요. 차트는 선택을 대신하지 않고 관찰의 언어로 사용합니다.</p></SectionCard></div>}<p className="detail-disclaimer">사주 결과는 오락과 자기 성찰을 위한 참고용입니다. 재정·의료·진로·관계 결정을 위한 유일한 근거로 사용하지 마세요.</p></div>;
+}
+
+function TarotDetailPage({ navigate }: { navigate: Navigate }): ReactElement {
+  const query = new URLSearchParams(window.location.search);
+  const payload = query.get('tarot') ? decodeSharePayload(query.get('tarot') ?? '') : null;
+  const reading = payload?.k === 'tarot' ? drawTarot(payload.seed, payload.spread, payload.category) : readStored<TarotReading>(STORAGE_KEYS.tarotCurrent) ?? readStored<TarotReading>(STORAGE_KEYS.tarot);
+  if (!reading) return <EmptyState title="상세 설명을 열 수 없어요" text="먼저 카드를 뽑은 뒤 다시 시도해주세요." button="타로로 돌아가기" onClick={() => navigate('/tarot')} />;
+  const section = query.get('section') ?? 'final-interpretation';
+  const selected = reading.cards.find((item) => item.card.id === query.get('card')) ?? reading.cards[0];
+  const keywords = selected ? (selected.reversed ? selected.card.reversedKeywords : selected.card.uprightKeywords) : [];
+  return <div className="page-wrap page-content detail-page tarot-detail-page"><button className="detail-back" type="button" onClick={() => navigate('/tarot')}>← 타로 결과로 돌아가기</button><div className="detail-header"><span className="detail-kicker">TAROT · ARCANA NOTE</span><h1>{section === 'final-interpretation' ? '이번 리딩의 전체 흐름' : selected?.card.name ?? '선택한 카드'}</h1><p>{reading.categoryLabel} 주제에 맞춰 카드의 위치와 방향을 읽고, 오늘 해볼 수 있는 행동으로 연결합니다.</p></div>{section === 'final-interpretation' ? <SectionCard className="tarot-detail-summary"><span className="detail-label">최종 해석</span><h2>{reading.summary}</h2><div className="tarot-detail-cards">{reading.cards.map((item) => <div key={`${item.card.id}-${item.position}`}><strong>{item.card.name}</strong><span>{item.position} · {item.reversed ? '역방향' : '정방향'}</span><p>{item.interpretation}</p></div>)}</div><div className="detail-action-box"><strong>오늘의 다음 행동</strong><p>카드가 남긴 단어 하나를 골라, 오늘 실제로 확인할 수 있는 작은 행동으로 바꿔보세요.</p></div></SectionCard> : selected ? <div className="tarot-detail-grid"><SectionCard className="tarot-detail-card"><img src={`${TAROT_ASSET_PATH}/${selected.card.id}.png`} alt="" aria-hidden="true" /><div><span className="detail-label">{selected.position} · {reading.categoryLabel}</span><h2>{selected.card.name}</h2><strong>{selected.reversed ? '역방향으로 읽기' : '정방향으로 읽기'}</strong><p>{selected.interpretation}</p></div></SectionCard><SectionCard><span className="detail-label">상징과 키워드</span><h2>{selected.reversed ? '역방향의 신호' : '정방향의 신호'}</h2><div className="detail-keywords">{keywords.map((keyword) => <span key={keyword}>{keyword}</span>)}</div><p>{selected.reversed ? selected.card.warning : selected.card.generalMeaning}</p></SectionCard><SectionCard><span className="detail-label">실천 리플렉션</span><h2>이 카드를 오늘 어떻게 써볼까요?</h2><div className="detail-action-box"><strong>돌아볼 질문</strong><p>{selected.reversed ? '지금 속도를 늦추고 다시 확인해야 할 신호는 무엇인가요?' : '이 카드의 강점을 오늘 어떤 행동으로 작게 시험해볼 수 있나요?'}</p></div><div className="detail-action-box"><strong>다음 행동</strong><p>{selected.advice}</p></div></SectionCard></div> : <p className="detail-note">선택한 카드를 찾지 못했습니다.</p>}<p className="detail-disclaimer">{reading.disclaimer}</p></div>;
 }
 
 function ComparePage({ navigate, notify }: { navigate: Navigate; notify: Notify }): ReactElement {
