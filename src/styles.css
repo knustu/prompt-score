@@ -1242,3 +1242,108 @@ label, .saju-form label, .tarot-controls label { color: #b7c5c7 !important; }
   .evaluate-page .prompt-lab-banner { min-height: 360px; }
   .prompt-result-page .result-hero-card { padding: 22px; }
 }
+
+/* Saju-only visual world: moonlit hanok, ink surfaces, brass structure. */
+.saju-page,
+.saju-detail-page { --saju-ink: #f4e4bc; --saju-gold: #d7ad61; --saju-gold-bright: #f3d791; --saju-night: #071321; --saju-panel: #101d2a; --saju-panel-soft: #142534; --saju-line: #6c5437; --saju-muted: #b5c2c1; }
+
+.saju-page { color: #edf2ef; }
+.saju-page .saju-moon-hero { grid-template-columns: minmax(0, 1.05fr) minmax(260px, .75fr); min-height: 470px; margin: -8px 0 36px; padding: clamp(34px, 6vw, 66px); border: 1px solid #9b7846 !important; border-radius: 10px !important; background: var(--saju-night) url('/images/saju-moonlit-hanok.jpg') center/cover no-repeat !important; box-shadow: 0 24px 60px rgba(0, 0, 0, .38), inset 0 0 0 1px rgba(243, 215, 145, .16) !important; }
+.saju-page .saju-moon-hero::before { display: none !important; }
+.saju-page .saju-moon-hero::after { position: absolute; inset: 16px; content: ''; pointer-events: none; border: 1px solid rgba(243, 215, 145, .26); border-radius: 5px; }
+.saju-page .saju-moon-copy { max-width: 560px; }
+.saju-page .saju-moon-copy h1 { margin: 13px 0 18px; color: var(--saju-ink) !important; font-size: clamp(38px, 5vw, 64px); letter-spacing: -.06em; text-shadow: 0 2px 20px rgba(0, 0, 0, .42) !important; }
+.saju-page .saju-moon-copy h1 em { color: var(--saju-gold-bright) !important; text-shadow: none !important; }
+.saju-page .saju-moon-copy p { max-width: 470px; color: #d3d8d0 !important; line-height: 1.85; text-shadow: 0 1px 10px rgba(0, 0, 0, .5); }
+.saju-page .saju-hero-tags { gap: 8px; margin-top: 26px; }
+.saju-page .saju-hero-tags span { padding: 8px 11px; color: var(--saju-gold-bright) !important; border: 1px solid rgba(243, 215, 145, .48) !important; border-radius: 4px !important; background: #0b1927 !important; box-shadow: none !important; backdrop-filter: none !important; font-size: 10px; }
+.saju-page .saju-hero-console { width: min(100%, 320px); border: 1px solid #b18b50 !important; border-radius: 50%; background: #0c1b29 !important; box-shadow: inset 0 0 0 1px #28404a, 0 0 0 10px rgba(215, 173, 97, .035) !important; }
+.saju-page .saju-hero-console::before { border-color: #48646b !important; }
+.saju-page .saju-hero-console::after { border-color: #a77d45 !important; }
+.saju-page .console-moon { color: #14202a !important; background: #e5c773 !important; border-color: #f5e0a4 !important; box-shadow: 0 0 30px rgba(242, 205, 117, .3) !important; }
+.saju-page .console-stat { padding: 10px 12px; color: var(--saju-ink); border: 1px solid #80633f !important; border-radius: 4px !important; background: #0c1b29 !important; box-shadow: none !important; backdrop-filter: none !important; }
+.saju-page .console-stat small { color: #9db9bb !important; }
+.saju-page .console-stat b { color: var(--saju-gold-bright) !important; }
+.saju-page > .page-intro { max-width: 740px; margin: 0 auto 28px; text-align: center; }
+.saju-page > .page-intro h1 { color: var(--saju-ink) !important; font-size: clamp(28px, 4vw, 42px); }
+.saju-page > .page-intro > p { max-width: 620px; margin-inline: auto; color: var(--saju-muted) !important; }
+
+.saju-page .saju-layout { grid-template-columns: minmax(290px, 360px) minmax(0, 1fr); gap: 18px; align-items: start; }
+.saju-page .saju-layout > .section-card, .saju-page .saju-result-column > .section-card, .saju-page .saju-result-column > .saju-next-step { border: 1px solid var(--saju-line) !important; border-radius: 10px !important; background: var(--saju-panel) !important; background-image: none !important; box-shadow: 0 18px 38px rgba(0, 0, 0, .28) !important; }
+.saju-page .saju-layout > .section-card:first-child { border-color: #9b7846 !important; background: #0d1a27 !important; }
+.saju-page .saju-form { gap: 14px; }
+.saju-page .saju-form h2 { margin-bottom: 5px; color: var(--saju-ink) !important; font-size: 22px; }
+.saju-page .saju-form label { color: #c3cfca !important; }
+.saju-page .saju-form input:not([type='checkbox']), .saju-page .saju-form select, .saju-page .saju-form textarea { color: #edf2ef !important; border: 1px solid #3c555d !important; border-radius: 5px !important; background: #071421 !important; box-shadow: inset 0 0 0 1px rgba(243, 215, 145, .05) !important; }
+.saju-page .saju-form input:focus, .saju-page .saju-form select:focus, .saju-page .saju-form textarea:focus { border-color: var(--saju-gold-bright) !important; box-shadow: 0 0 0 3px rgba(215, 173, 97, .13) !important; }
+.saju-page .saju-form input::placeholder, .saju-page .saju-form textarea::placeholder { color: #748c8d !important; }
+.saju-page .saju-form .field-note { color: #9fb0b0 !important; }
+.saju-page .saju-form .check-label input { accent-color: var(--saju-gold); }
+.saju-page .saju-form .saju-context { padding: 13px; border: 1px solid #344e57; border-radius: 5px; background: #0b1926 !important; }
+.saju-page .saju-form .saju-context summary { color: var(--saju-gold-bright) !important; }
+.saju-page .saju-form > .button { color: #10191c !important; background: var(--saju-gold-bright) !important; border-color: #f9e8b0 !important; border-radius: 5px !important; box-shadow: 0 8px 22px rgba(215, 173, 97, .16) !important; }
+.saju-page .saju-form > .button:hover { background: #ffe9aa !important; }
+
+.saju-page .saju-summary { background: #0d1b28 !important; border-color: #9b7846 !important; }
+.saju-page .saju-summary .section-title-row h2, .saju-page .saju-timing-card h2, .saju-page .saju-result-column > .section-card h2 { color: var(--saju-ink) !important; }
+.saju-page .saju-summary .muted, .saju-page .saju-result-column .muted { color: var(--saju-muted) !important; }
+.saju-page .element-constellation { min-height: 220px; border: 1px solid #526d70 !important; border-radius: 8px !important; background: #091622 !important; }
+.saju-page .constellation-grid { display: none !important; }
+.saju-page .constellation-core { color: var(--saju-gold-bright) !important; background: #0d1c29 !important; border-color: #b18b50 !important; box-shadow: none !important; }
+.saju-page .constellation-core small { color: #a4b8b8 !important; }
+.saju-page .constellation-node { color: #d4dfdb !important; }
+.saju-page .constellation-node i { box-shadow: none !important; }
+.saju-page .constellation-node b { color: var(--saju-gold-bright) !important; }
+.saju-page .element-row > span { color: #e8d19a !important; }
+.saju-page .saju-summary .bar-track, .saju-page .yin-yang > div { background: #20363c !important; box-shadow: none !important; }
+.saju-page .saju-summary .yin-yang { border-color: #3c555d !important; }
+.saju-page .saju-summary .yin-yang i { background: #66868a !important; }
+.saju-page .saju-summary .yin-yang b { background: var(--saju-gold) !important; }
+.saju-page .saju-summary .result-actions .button.secondary { color: var(--saju-gold-bright) !important; background: #0b1926 !important; border-color: #80633f !important; }
+.saju-page .saju-timing-card, .saju-page .saju-compatibility-card, .saju-page .saju-persona-card, .saju-page .saju-situation-card, .saju-page .saju-question-card, .saju-page .saju-weather-card, .saju-page .saju-feedback { background: var(--saju-panel) !important; background-image: none !important; border-color: #675237 !important; }
+.saju-page .saju-timing-columns > div, .saju-page .saju-data-list li, .saju-page .saju-fact-grid > div, .saju-page .saju-advanced-pillars article, .saju-page .saju-indicator-grid article, .saju-page .interpretation-grid article, .saju-page .pillar-row, .saju-page .situation-body, .saju-page .question-answer, .saju-page .weather-item, .saju-page .persona-points > div, .saju-page .persona-example { color: #e7efea !important; background: #0b1926 !important; background-image: none !important; border: 1px solid #344e57 !important; border-radius: 6px !important; }
+.saju-page .pillar-row::before { display: none !important; }
+.saju-page .pillar-row strong, .saju-page .saju-timing-columns h3, .saju-page .saju-fact-grid strong, .saju-page .saju-advanced-pillars strong, .saju-page .interpretation-grid article > span, .saju-page .situation-body h3, .saju-page .question-answer h3, .saju-page .weather-item h3 { color: var(--saju-gold-bright) !important; text-shadow: none !important; }
+.saju-page .saju-data-list strong, .saju-page .saju-data-list span, .saju-page .interpretation-grid p, .saju-page .weather-item p, .saju-page .persona-example p { color: var(--saju-muted) !important; }
+.saju-page .saju-next-step { padding: 20px; text-align: center; border-color: #a17b43 !important; background: #191b20 !important; }
+.saju-page .saju-next-step p { color: var(--saju-ink) !important; }
+.saju-page .saju-next-step button, .saju-page .situation-tab, .saju-page .question-chip, .saju-page .feedback-choice { color: var(--saju-gold-bright) !important; border: 1px solid #735b3a !important; border-radius: 4px !important; background: #0b1926 !important; }
+.saju-page .saju-next-step button:hover, .saju-page .situation-tab:hover, .saju-page .situation-tab.selected, .saju-page .question-chip:hover, .saju-page .question-chip.selected, .saju-page .feedback-choice:hover, .saju-page .feedback-choice.selected { color: #10191c !important; background: var(--saju-gold-bright) !important; border-color: #f6df9f !important; }
+.saju-page .warm-notice { color: var(--saju-ink) !important; border-color: #745936 !important; border-radius: 6px !important; background: #292018 !important; }
+
+.saju-detail-page { position: relative; isolation: isolate; color: #edf2ef !important; }
+.saju-detail-page::before { position: absolute; z-index: -1; top: -24px; right: -120px; width: 430px; height: 260px; content: ''; border: 1px solid rgba(215, 173, 97, .2); background: url('/images/saju-moonlit-hanok.jpg') center/cover; opacity: .15; pointer-events: none; }
+.saju-detail-page .detail-header { padding-left: 0 !important; border-left: 0 !important; border-bottom: 1px solid #8f6e42 !important; }
+.saju-detail-page .detail-header h1 { color: var(--saju-ink) !important; }
+.saju-detail-page .detail-header p, .saju-detail-page .detail-note, .saju-detail-page .detail-disclaimer { color: var(--saju-muted) !important; }
+.saju-detail-page .detail-label { display: block !important; margin-bottom: 9px; color: var(--saju-gold-bright) !important; }
+.saju-detail-page .section-card { border: 1px solid #675237 !important; border-radius: 8px !important; background: var(--saju-panel) !important; background-image: none !important; box-shadow: 0 16px 34px rgba(0, 0, 0, .26) !important; }
+.saju-detail-page .section-card::before, .saju-detail-page .section-card::after { display: none !important; }
+.saju-detail-page .section-card h2 { color: var(--saju-ink) !important; }
+.saju-detail-page .section-card > p, .saju-detail-page .detail-list { color: var(--saju-muted) !important; }
+.saju-detail-page .saju-element-mark { color: var(--saju-gold-bright) !important; }
+.saju-detail-page .detail-action-box { border: 1px solid #735b3a !important; border-radius: 5px !important; background: #211d18 !important; }
+.saju-detail-page .detail-action-box strong, .saju-detail-page .detail-bar-row b { color: var(--saju-gold-bright) !important; }
+.saju-detail-page .detail-action-box p { color: #d0d3c8 !important; }
+.saju-detail-page .detail-bar-row { color: #c0cdca !important; }
+.saju-detail-page .detail-bar-row > div { background: #263a3e !important; }
+.saju-detail-page .detail-bar-row i { background: var(--saju-gold) !important; }
+.saju-detail-page .detail-step-list li::before { color: #10191c !important; background: var(--saju-gold-bright) !important; }
+
+@media (max-width: 860px) {
+  .saju-page .saju-moon-hero { grid-template-columns: 1fr; min-height: 580px; }
+  .saju-page .saju-moon-copy { max-width: 620px; text-align: center; justify-self: center; }
+  .saju-page .saju-moon-copy p { margin-inline: auto; }
+  .saju-page .saju-hero-tags { justify-content: center; }
+  .saju-page .saju-hero-console { justify-self: center; width: min(280px, 72vw); }
+}
+
+@media (max-width: 620px) {
+  .saju-page .saju-moon-hero { min-height: 560px; margin-top: -6px; padding: 28px 20px; background-position: 58% center !important; }
+  .saju-page .saju-moon-copy h1 { font-size: 38px; }
+  .saju-page .saju-moon-copy p { font-size: 12px; }
+  .saju-page .saju-hero-console { width: min(240px, 78vw); }
+  .saju-page .saju-layout { grid-template-columns: 1fr; }
+  .saju-page .saju-layout > .section-card:first-child { order: 0; }
+  .saju-detail-page::before { right: -160px; opacity: .09; }
+}
