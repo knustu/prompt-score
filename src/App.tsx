@@ -757,7 +757,19 @@ function SajuTimingCard({ chart, detailUrl }: { chart: NonNullable<SajuResult['c
 
 const TAROT_SYMBOLS: Record<TarotCard['arcana'], string> = { Major: '✦', Wands: '◇', Cups: '◒', Swords: '⚔', Pentacles: '⬡' };
 const TAROT_ARCANA_LABELS: Record<TarotCard['arcana'], string> = { Major: 'MAJOR', Wands: 'WANDS', Cups: 'CUPS', Swords: 'SWORDS', Pentacles: 'PENTACLES' };
-const TAROT_ASSET_PATH = '/images/tarot';
+const TAROT_ARTWORKS = import.meta.glob('../tarot-deck-original-v1/*.png', { eager: true, import: 'default', query: '?url' }) as Record<string, string>;
+const TAROT_RANK_BY_CODE: Record<string, string> = { '01': 'ace', '11': 'page', '12': 'knight', '13': 'queen', '14': 'king' };
+const tarotArtworkId = (filePath: string): string => {
+  const fileName = filePath.split('/').pop()?.replace(/\.png$/, '') ?? '';
+  const [suit, code] = fileName.split('-');
+  return `${suit}-${suit === 'major' ? code : TAROT_RANK_BY_CODE[code] ?? code}`;
+};
+const TAROT_ARTWORKS_BY_ID = Object.fromEntries(Object.entries(TAROT_ARTWORKS).map(([filePath, url]) => [tarotArtworkId(filePath), url])) as Record<string, string>;
+const tarotAssetUrl = (cardId: string): string => {
+  const url = TAROT_ARTWORKS_BY_ID[cardId];
+  if (!url) throw new Error(`Missing tarot artwork: ${cardId}`);
+  return url;
+};
 const tarotCardIndex = (card: TarotCard): number => TAROT_CARDS.findIndex(({ id }) => id === card.id);
 const tarotCardStyle = (index: number): CSSProperties => ({ '--card-hue': `${(index * 17 + 188) % 360}`, '--card-index': `${index + 1}` } as CSSProperties);
 
@@ -801,7 +813,7 @@ function TarotPage({ navigate, notify }: { navigate: Navigate; notify: Notify })
 function TarotVisual({ item, detailUrl }: { item: TarotReading['cards'][number]; detailUrl?: (cardId: string) => string }): ReactElement {
   const index = tarotCardIndex(item.card);
   const node = String(index + 1).padStart(2, '0');
-  return <article className="tarot-card-wrap" data-guide-kind={detailUrl ? 'tarot' : undefined} data-guide-section={detailUrl ? `card-${item.card.id}` : undefined} data-guide-detail={detailUrl ? detailUrl(item.card.id) : undefined}><div className={`${item.reversed ? 'tarot-card reversed' : 'tarot-card'} tarot-card-${item.card.arcana.toLowerCase()}`} style={tarotCardStyle(index)}><img className="tarot-card-art" src={`${TAROT_ASSET_PATH}/${item.card.id}.png`} alt="" aria-hidden="true" /><div className="tarot-card-hud"><span>NODE {node} / 78</span><em>{TAROT_ARCANA_LABELS[item.card.arcana]}</em></div><span className="tarot-corner">✦</span><div className="tarot-symbol"><span>{TAROT_SYMBOLS[item.card.arcana]}</span><i /><small>NEURAL<br />ARCANA</small></div><strong>{item.card.name}</strong><small>{item.reversed ? 'REVERSED · 역방향' : 'UPRIGHT · 정방향'}</small><div className="tarot-ai-tag">{item.card.aiArchetype ?? 'NEURAL ARCHETYPE'}</div><div className="tarot-keywords">{(item.reversed ? item.card.reversedKeywords : item.card.uprightKeywords).map((keyword) => <span key={keyword}>{keyword}</span>)}</div></div><div className="tarot-reading"><span className="card-kicker">{item.position}</span><p>{item.interpretation}</p><strong>ADVICE</strong><p>{item.advice}</p><strong>CHECK</strong><p>{item.warning}</p></div></article>;
+  return <article className="tarot-card-wrap" data-guide-kind={detailUrl ? 'tarot' : undefined} data-guide-section={detailUrl ? `card-${item.card.id}` : undefined} data-guide-detail={detailUrl ? detailUrl(item.card.id) : undefined}><div className={`${item.reversed ? 'tarot-card reversed' : 'tarot-card'} tarot-card-${item.card.arcana.toLowerCase()}`} style={tarotCardStyle(index)}><img className="tarot-card-art" src={tarotAssetUrl(item.card.id)} alt="" aria-hidden="true" /><div className="tarot-card-hud"><span>NODE {node} / 78</span><em>{TAROT_ARCANA_LABELS[item.card.arcana]}</em></div><span className="tarot-corner">✦</span><div className="tarot-symbol"><span>{TAROT_SYMBOLS[item.card.arcana]}</span><i /><small>NEURAL<br />ARCANA</small></div><strong>{item.card.name}</strong><small>{item.reversed ? 'REVERSED · 역방향' : 'UPRIGHT · 정방향'}</small><div className="tarot-ai-tag">{item.card.aiArchetype ?? 'NEURAL ARCHETYPE'}</div><div className="tarot-keywords">{(item.reversed ? item.card.reversedKeywords : item.card.uprightKeywords).map((keyword) => <span key={keyword}>{keyword}</span>)}</div></div><div className="tarot-reading"><span className="card-kicker">{item.position}</span><p>{item.interpretation}</p><strong>ADVICE</strong><p>{item.advice}</p><strong>CHECK</strong><p>{item.warning}</p></div></article>;
 }
 
 function TarotSpreadTable({ reading, detailUrl }: { reading: TarotReading; detailUrl?: (section: string, cardId?: string) => string }): ReactElement {
@@ -824,7 +836,7 @@ function TarotDeckGallery(): ReactElement {
 
 function TarotDeckTile({ card }: { card: TarotCard }): ReactElement {
   const index = tarotCardIndex(card);
-  return <article className={`tarot-deck-tile tarot-deck-${card.arcana.toLowerCase()}`} style={tarotCardStyle(index)} aria-label={`${card.name} · ${card.aiArchetype ?? 'NEURAL ARCHETYPE'}`}><img className="tarot-card-art" src={`${TAROT_ASSET_PATH}/${card.id}.png`} alt="" aria-hidden="true" loading="lazy" /><div className="tarot-deck-hud"><span>{String(index + 1).padStart(2, '0')}</span><em>{TAROT_ARCANA_LABELS[card.arcana]}</em></div><div className="tarot-deck-core" aria-hidden="true"><i /><span>{TAROT_SYMBOLS[card.arcana]}</span><b>{String(index + 1).padStart(2, '0')}</b></div><strong>{card.name}</strong><small>{card.aiArchetype ?? 'NEURAL ARCHETYPE'}</small><div className="tarot-deck-keywords">{card.uprightKeywords.slice(0, 2).map((keyword) => <span key={keyword}>{keyword}</span>)}</div></article>;
+  return <article className={`tarot-deck-tile tarot-deck-${card.arcana.toLowerCase()}`} style={tarotCardStyle(index)} aria-label={`${card.name} · ${card.aiArchetype ?? 'NEURAL ARCHETYPE'}`}><img className="tarot-card-art" src={tarotAssetUrl(card.id)} alt="" aria-hidden="true" loading="lazy" /><div className="tarot-deck-hud"><span>{String(index + 1).padStart(2, '0')}</span><em>{TAROT_ARCANA_LABELS[card.arcana]}</em></div><div className="tarot-deck-core" aria-hidden="true"><i /><span>{TAROT_SYMBOLS[card.arcana]}</span><b>{String(index + 1).padStart(2, '0')}</b></div><strong>{card.name}</strong><small>{card.aiArchetype ?? 'NEURAL ARCHETYPE'}</small><div className="tarot-deck-keywords">{card.uprightKeywords.slice(0, 2).map((keyword) => <span key={keyword}>{keyword}</span>)}</div></article>;
 }
 
 const PROMPT_DETAIL_GUIDANCE: Record<string, { what: string; read: string; next: string }> = {
@@ -942,7 +954,7 @@ function TarotDetailPage({ navigate }: { navigate: Navigate }): ReactElement {
       <SectionCard className="tarot-detail-application"><span className="detail-label">리딩을 생활로 옮기기</span><h2>카드의 단어를 행동으로 바꾸기</h2><ol className="detail-step-list"><li><strong>한 단어 고르기</strong><span>오늘 가장 오래 남는 키워드 하나를 고릅니다.</span></li><li><strong>장면 연결하기</strong><span>그 단어가 필요한 일·관계·결정의 장면을 찾습니다.</span></li><li><strong>작게 실행하기</strong><span>확인 가능한 행동 하나로 바꾸고 하루 뒤 돌아봅니다.</span></li></ol></SectionCard>
       <SectionCard className="tarot-detail-application"><span className="detail-label">다시 질문하기</span><h2>다음 질문으로 남길 문장</h2><p>“이 흐름을 바꾸기 위해 내가 오늘 확인할 수 있는 사실은 무엇인가?”</p><p>타로는 결론을 대신하기보다, 내가 놓친 감정과 선택지를 다시 바라보는 장치로 사용하세요.</p></SectionCard>
     </div> : selected ? <div className="tarot-detail-grid">
-      <SectionCard className="tarot-detail-card"><img src={`${TAROT_ASSET_PATH}/${selected.card.id}.png`} alt="" aria-hidden="true" /><div><span className="detail-label">{selected.position} · {reading.categoryLabel}</span><h2>{selected.card.name}</h2><strong>{selected.reversed ? '역방향으로 읽기' : '정방향으로 읽기'}</strong><p>{selected.interpretation}</p></div></SectionCard>
+      <SectionCard className="tarot-detail-card"><img src={tarotAssetUrl(selected.card.id)} alt="" aria-hidden="true" /><div><span className="detail-label">{selected.position} · {reading.categoryLabel}</span><h2>{selected.card.name}</h2><strong>{selected.reversed ? '역방향으로 읽기' : '정방향으로 읽기'}</strong><p>{selected.interpretation}</p></div></SectionCard>
       <SectionCard><span className="detail-label">상징과 방향</span><h2>{selected.reversed ? '역방향의 신호' : '정방향의 신호'}</h2><div className="detail-keywords">{keywords.map((keyword) => <span key={keyword}>{keyword}</span>)}</div><p>{selected.reversed ? selected.card.warning : selected.card.generalMeaning}</p><div className="detail-direction-note"><strong>{selected.reversed ? '멈춰서 확인할 것' : '살려볼 힘'}</strong><p>{selected.reversed ? '지금의 해석을 사실로 확정하기보다, 속도를 늦추고 빠진 정보와 감정을 확인하세요.' : '카드의 강점을 과장하지 않고 오늘 검증할 수 있는 작은 행동으로 옮겨보세요.'}</p></div></SectionCard>
       <SectionCard className="tarot-detail-application"><span className="detail-label">주제에 연결하기</span><h2>{reading.categoryLabel}에서의 의미</h2><p>{topicMeaning}</p><div className="detail-action-box"><strong>상황 질문</strong><p>{selected.reversed ? '이 주제에서 내가 피하거나 과하게 해석하는 부분은 무엇인가요?' : '이 주제에서 지금 더 분명히 확인하고 싶은 것은 무엇인가요?'}</p></div></SectionCard>
       <SectionCard className="tarot-detail-application"><span className="detail-label">실천 리플렉션</span><h2>이 카드를 오늘 어떻게 써볼까요?</h2><div className="detail-action-box"><strong>돌아볼 질문</strong><p>{selected.reversed ? '지금 속도를 늦추고 다시 확인해야 할 신호는 무엇인가요?' : '이 카드의 강점을 오늘 어떤 행동으로 작게 시험해볼 수 있나요?'}</p></div><div className="detail-action-box"><strong>다음 행동</strong><p>{selected.advice}</p></div></SectionCard>
