@@ -863,3 +863,250 @@ input:not([type='checkbox']):not([type='radio']), textarea, select, .saju-form i
   .tarot-detail-card { grid-template-columns: 1fr; }
   .tarot-detail-card > img { height: 230px; }
 }
+
+/* Visual direction: dark interface, solid surfaces, page-specific accents. */
+:root {
+  color-scheme: dark;
+  --bg: #060a12;
+  --panel: #0d1520;
+  --panel-strong: #09111b;
+  --panel-soft: #121e2a;
+  --card: #0d1520;
+  --text: #edf4f2;
+  --ink: #edf4f2;
+  --muted: #aab8bb;
+  --line: #293c47;
+  --purple: #45e8eb;
+  --purple-dark: #12343b;
+  --lavender: #12232d;
+  --mint: #102b2b;
+  --peach: #32251f;
+  --cyan: #45e8eb;
+  --cyan-soft: #93edef;
+  --magenta: #f254a6;
+  --violet: #d4ae68;
+  --lime: #75d59e;
+  --orange: #e6a16b;
+  --shadow: 0 18px 42px rgba(0, 0, 0, .28);
+}
+
+html, body, #root, body { background: #060a12 !important; color: var(--text) !important; }
+.app-shell { background: #060a12 !important; }
+.ambient-field { display: none !important; }
+.page-content, .landing-page { animation: none !important; }
+
+.site-header { background: #080f18 !important; border-color: #243944 !important; box-shadow: 0 10px 28px rgba(0, 0, 0, .24) !important; backdrop-filter: none !important; }
+.brand { color: #edf4f2 !important; text-shadow: none !important; }
+.brand-mark { color: #061216 !important; background: #45e8eb !important; box-shadow: 0 0 0 1px #8df3f2 !important; }
+.nav-link { color: #9aadb2 !important; }
+.nav-link:hover, .nav-link.active, .text-button:hover { color: #45e8eb !important; background: #10232c !important; box-shadow: inset 0 -2px #45e8eb !important; }
+.site-footer { background: #080e16 !important; border-color: #243944 !important; color: #91a2a7 !important; }
+.site-footer strong { color: #edf4f2 !important; }
+.footer-note { color: #789096 !important; }
+
+.hero h1, .page-intro h1, h2, h3, .section-heading h2, .method-copy h2 { color: #edf4f2 !important; text-shadow: none !important; }
+.hero h1 em { color: #45e8eb !important; background: none !important; text-shadow: none !important; }
+.hero-lead, .page-intro > p, .method-copy p, .feature-card p, .step p, .disclaimer-card p, .hero-trust { color: #aab8bb !important; }
+.hero-lead strong, .hero-trust span, .hero-spark { color: #f254a6 !important; text-shadow: none !important; }
+.floating-chip, .privacy-pill, .page-eyebrow, .card-kicker, .detail-kicker, .eyebrow, .saju-hero-kicker, .tarot-hero-kicker, .lab-kicker { display: none !important; }
+.score-orbit { background: #102e35 !important; border-color: #45e8eb !important; box-shadow: 0 0 0 1px #163f48 !important; animation: none !important; }
+.score-orbit::before { background: #08131c !important; border-color: #29616b !important; box-shadow: none !important; }
+.score-orbit strong { color: #45e8eb !important; text-shadow: none !important; }
+.holo-stage::before { border-color: #1e6470 !important; box-shadow: none !important; }
+
+.section-card, .problem-card, .prompt-card, .disclaimer-card, .result-hero-card, .result-notice, .notice, .empty-state, .aside-safety, .saju-summary, .tarot-summary, .tarot-reading, .comparison-hero, .my-score-box, .compare-example, .feature-card { color: var(--text) !important; background: #0d1520 !important; background-image: none !important; border: 1px solid #293c47 !important; border-radius: 12px !important; box-shadow: var(--shadow) !important; backdrop-filter: none !important; }
+.section-card::before, .section-card::after, .feature-card::before, .saju-summary::after { display: none !important; }
+.section-card h2, .section-card h3, .feature-card h3, .problem-card h2, .prompt-card h2, .tarot-reading strong, .plain-list strong { color: #edf4f2 !important; }
+.feature-card:hover { border-color: #45e8eb !important; box-shadow: 0 18px 42px rgba(0, 0, 0, .34) !important; }
+.feature-icon, .step > span { color: #45e8eb !important; background: #102d35 !important; box-shadow: none !important; }
+.method-section { background: #0b151f !important; border-color: #293c47 !important; box-shadow: var(--shadow) !important; }
+
+.button { color: #061216 !important; background: #45e8eb !important; border-color: #8df3f2 !important; box-shadow: 0 8px 20px rgba(69, 232, 235, .16) !important; }
+.button::before { display: none !important; }
+.button:hover { color: #061216 !important; background: #8df3f2 !important; box-shadow: 0 10px 24px rgba(69, 232, 235, .22) !important; }
+.button.secondary, .ghost-button { color: #45e8eb !important; background: #0b1822 !important; border-color: #2b6570 !important; box-shadow: none !important; }
+.button.secondary:hover, .ghost-button:hover { color: #edf4f2 !important; background: #102d35 !important; border-color: #45e8eb !important; }
+.icon-action { color: #45e8eb !important; background: #102d35 !important; border-color: #2b6570 !important; }
+
+input:not([type='checkbox']):not([type='radio']), textarea, select, .saju-form input:not([type='checkbox']), .saju-form select, .tarot-controls select, .friend-code-input, .code-row input { color: #edf4f2 !important; border-color: #2d4a56 !important; background: #08131d !important; box-shadow: none !important; }
+input::placeholder, textarea::placeholder { color: #71858a !important; }
+input:focus, textarea:focus, select:focus { border-color: #45e8eb !important; box-shadow: 0 0 0 3px rgba(69, 232, 235, .12) !important; }
+label, .saju-form label, .tarot-controls label { color: #b7c5c7 !important; }
+.field-note, .muted, .small-note, .challenge-option small { color: #91a4a8 !important; }
+
+/* Prompt evaluation: cyberpunk control-room contrast without gradients. */
+.evaluate-page, .prompt-result-page, .prompt-detail-page { --page-accent: #45e8eb; --page-accent-soft: #93edef; }
+.evaluate-page .section-card, .prompt-result-page .section-card, .prompt-detail-page .section-card { border-color: #1e5b66 !important; }
+.prompt-lab-banner { background: #0b1825 !important; background-image: none !important; border-color: #1e7180 !important; border-radius: 12px !important; box-shadow: var(--shadow) !important; }
+.prompt-lab-banner::before, .lab-monitor::after { display: none !important; }
+.lab-copy h2, .lab-copy h2 em { color: #45e8eb !important; text-shadow: none !important; }
+.lab-copy p { color: #9fb2b5 !important; }
+.lab-monitor { background: #07121b !important; border-color: #2a7580 !important; box-shadow: inset 0 0 0 1px #102f38 !important; }
+.monitor-top, .lab-table { color: #78979c !important; }
+.monitor-top b, .lab-table b { color: #75d59e !important; }
+.lab-bars { border-color: #204c55 !important; }
+.lab-bars i { background: #45e8eb !important; box-shadow: none !important; animation: none !important; }
+.monitor-cursor { background: #f254a6 !important; box-shadow: none !important; animation: none !important; }
+.challenge-option { color: #edf4f2 !important; background: #0b1823 !important; border-color: #244451 !important; }
+.challenge-option:hover, .challenge-option.selected { border-color: #45e8eb !important; background: #102d35 !important; box-shadow: inset 0 0 0 1px #45e8eb !important; }
+.problem-card { background: #111b27 !important; border-color: #2e5360 !important; }
+.problem-box { background: #0a151f !important; border: 1px solid #223b46 !important; }
+.tag-list span, .missing-list span { color: #a6eced !important; background: #102d35 !important; border: 1px solid #2b6570 !important; border-radius: 4px !important; }
+.prompt-card textarea { color: #edf4f2 !important; background: #07121b !important; border-color: #2d5260 !important; }
+.example-row button { color: #45e8eb !important; }
+.submit-row > span { color: #80999d !important; }
+.aside-tip { color: #edf4f2 !important; background: #0b202b !important; border-color: #f254a6 !important; }
+.tip-icon, .aside-tip ul, .aside-safety strong { color: #45e8eb !important; }
+.aside-tip ul, .aside-safety p { color: #aab8bb !important; }
+.aside-safety { background: #0c201f !important; border-color: #2f655d !important; }
+.result-hero-card, .comparison-hero { background: #0c1b28 !important; border-color: #45e8eb !important; }
+.score-ring { background: #166b75 !important; box-shadow: 0 0 0 1px #45e8eb !important; }
+.score-ring > div { background: #07121b !important; box-shadow: inset 0 0 0 1px #244451 !important; }
+.score-ring strong, .comparison-scores strong { color: #45e8eb !important; text-shadow: none !important; }
+.score-ring span, .comparison-scores small { color: #91a4a8 !important; }
+.style-label { padding: 0 !important; color: #f254a6 !important; background: none !important; border: 0 !important; border-radius: 0 !important; }
+.bar-label, .comparison-label { color: #aab8bb !important; }
+.bar-label b { color: #45e8eb !important; }
+.bar-track, .compare-track { background: #182b34 !important; box-shadow: none !important; }
+.bar-track > span { background: #93a6aa !important; box-shadow: none !important; }
+.bar-track > span.strong, .compare-track i { background: #45e8eb !important; box-shadow: none !important; }
+.bar-track > span.partial { background: #e6a16b !important; }
+.bar-track > span.weak, .compare-track b { background: #f254a6 !important; box-shadow: none !important; }
+.feedback-item, .feedback-item.strength, .evidence-item, .interpretation-grid article, .pillar-row { color: #edf4f2 !important; background: #0a1721 !important; border: 1px solid #244451 !important; }
+.feedback-item p, .evidence-item p, .interpretation-grid p, .category-details p, .tarot-reading p { color: #aab8bb !important; }
+.evidence-item { border-left: 0 !important; }
+.evidence-item span, .recommendation-list li > span { color: #45e8eb !important; }
+.recommendation-list li { color: #aab8bb !important; }
+.recommendation-list li > span { background: #14525c !important; }
+.result-notice, .notice { color: #93edef !important; background: #102a2d !important; border-color: #28615f !important; }
+.result-notice p { color: #aab8bb !important; }
+.empty-state > span { color: #45e8eb !important; background: #102d35 !important; box-shadow: none !important; }
+.empty-scan-lines i { background: #45e8eb !important; animation: none !important; }
+.signal-row em { color: #a6eced !important; background: #102d35 !important; border-radius: 4px !important; }
+.signal-row em.partial { color: #ffd19a !important; background: #3a2a20 !important; }
+.signal-row em.weak { color: #ffb2c8 !important; background: #3b202e !important; }
+
+/* Saju: moonlit navy, ink, and brass. */
+.saju-page, .saju-detail-page { --page-accent: #e2b86d; --page-accent-soft: #f3d79c; }
+.saju-moon-hero { background: #0b1622 url('/images/saju-moonlit-hanok.jpg') center/cover no-repeat !important; border-color: #8a6d43 !important; border-radius: 12px !important; box-shadow: var(--shadow) !important; }
+.saju-moon-hero::before { display: none !important; }
+.saju-moon-copy h1, .saju-moon-copy h1 em { color: #f3d79c !important; text-shadow: none !important; }
+.saju-moon-copy p { color: #c2cdd0 !important; }
+.saju-hero-tags span { color: #f3d79c !important; background: #0b1825 !important; border-color: #8a6d43 !important; border-radius: 4px !important; box-shadow: none !important; backdrop-filter: none !important; }
+.saju-hero-console { background: #0b1825 !important; border-color: #a8844f !important; box-shadow: inset 0 0 0 1px #243b49 !important; }
+.saju-hero-console::before, .saju-hero-console::after { border-color: #42616a !important; }
+.console-moon, .console-stat b, .saju-page .section-title-row h2 { color: #f3d79c !important; }
+.console-stat { background: #0b1825 !important; border-color: #7e6240 !important; }
+.saju-page .section-card, .saju-detail-page .section-card { background: #101c29 !important; border-color: #675538 !important; }
+.saju-form .field-note, .saju-form label, .saju-page .muted { color: #aebcbe !important; }
+.saju-page input, .saju-page select, .saju-page textarea { border-color: #4f5e60 !important; background: #09141f !important; }
+.saju-page input:focus, .saju-page select:focus, .saju-page textarea:focus { border-color: #e2b86d !important; box-shadow: 0 0 0 3px rgba(226, 184, 109, .12) !important; }
+.saju-summary { background: #0e1b28 !important; border-color: #56727a !important; }
+.element-constellation { background: #0a1722 !important; border-color: #496d73 !important; }
+.constellation-grid { background-image: none !important; opacity: 0 !important; }
+.constellation-core { color: #f3d79c !important; background: #0b1825 !important; border-color: #a8844f !important; box-shadow: none !important; }
+.constellation-node i { box-shadow: none !important; }
+.constellation-node span, .constellation-node b { color: #d5dfe0 !important; }
+.saju-summary .bar-track, .yin-yang > div, .detail-bar-row > div { background: #203039 !important; box-shadow: none !important; }
+.saju-summary .yin-yang { border-color: #3d555b !important; }
+.saju-summary .yin-yang i { background: #6c8d91 !important; }
+.saju-summary .yin-yang b { background: #e2b86d !important; }
+.pillar-row, .interpretation-grid article, .saju-fact-grid > div, .saju-advanced-pillars article, .saju-indicator-grid article, .saju-data-list li, .saju-reading-items details, .saju-method-card details, .persona-points > div, .persona-columns > div, .persona-example, .situation-body, .question-answer, .situation-actions > div, .weather-item { background: #0b1825 !important; background-image: none !important; border-color: #344f58 !important; }
+.pillar-row::before { display: none !important; }
+.pillar-row strong, .saju-fact-grid strong, .saju-advanced-pillars strong, .saju-timing-columns h3, .situation-body h3, .question-answer h3, .weather-item h3 { color: #f3d79c !important; text-shadow: none !important; }
+.interpretation-grid article > span, .saju-data-list strong, .saju-timing-columns h3 { color: #e2b86d !important; }
+.saju-compatibility-card, .saju-persona-card, .saju-next-step { background: #171d2a !important; background-image: none !important; border-color: #8a6d43 !important; }
+.saju-next-step button, .situation-tab, .question-chip, .feedback-choice { color: #e2b86d !important; background: #0b1825 !important; border-color: #735b3c !important; border-radius: 5px !important; }
+.saju-next-step button:hover, .situation-tab:hover, .situation-tab.selected, .question-chip:hover, .question-chip.selected, .feedback-choice:hover, .feedback-choice.selected { color: #081217 !important; background: #e2b86d !important; border-color: #f3d79c !important; }
+.warm-notice { color: #f3d79c !important; background: #2c241d !important; border-color: #705737 !important; }
+
+/* Tarot: arcana table, midnight ink, and antique gold. */
+.tarot-page, .tarot-detail-page { --page-accent: #e2b86d; --page-accent-soft: #f3d79c; }
+.tarot-portal-hero { background: #0b111d !important; background-image: none !important; border-color: #8a6d43 !important; border-radius: 12px !important; box-shadow: var(--shadow) !important; }
+.tarot-portal-hero::before { display: none !important; }
+.tarot-portal-hero h2, .tarot-portal-hero h2 em { color: #f3d79c !important; text-shadow: none !important; }
+.tarot-portal-hero p { color: #b5c0c2 !important; }
+.tarot-portal { background: #0f1b29 !important; border-color: #a8844f !important; box-shadow: inset 0 0 0 1px #273d49 !important; }
+.tarot-portal::before, .tarot-portal::after { border-color: #735b3c !important; }
+.tarot-portal > span, .tarot-portal b, .tarot-portal small { color: #f3d79c !important; text-shadow: none !important; }
+.tarot-controls { color: #edf4f2 !important; background: #0c1825 !important; border-color: #8a6d43 !important; }
+.tarot-controls select, .tarot-name-row input { color: #edf4f2 !important; background: #08131d !important; border-color: #4b5e61 !important; }
+.segmented { background: #07121b !important; border: 1px solid #2c464f !important; }
+.segmented button { color: #9fb0b3 !important; }
+.segmented button.selected { color: #071217 !important; background: #e2b86d !important; }
+.tarot-compatibility-hint, .tarot-compatibility-note, .tarot-mini-note { color: #9fb0b3 !important; }
+.tarot-compatibility-note { border-color: #4a5f61 !important; background: #0b1825 !important; }
+.tarot-card { color: #edf4f2 !important; background: #172536 !important; border-color: #d1a55c !important; box-shadow: 0 18px 34px rgba(0, 0, 0, .38) !important; }
+.tarot-card.reversed { background: #30302b !important; }
+.tarot-card::before, .tarot-card::after, .tarot-deck-tile::before, .tarot-deck-tile::after { display: none !important; }
+.tarot-card-art { opacity: .48 !important; mix-blend-mode: normal !important; }
+.tarot-card-hud, .tarot-deck-hud { color: #a7b7b8 !important; }
+.tarot-card-hud em, .tarot-deck-hud em, .tarot-card strong, .tarot-ai-tag { color: #f3d79c !important; }
+.tarot-corner, .tarot-symbol > span { color: #e2b86d !important; text-shadow: none !important; }
+.tarot-symbol { border-color: #8a6d43 !important; color: #f3d79c !important; box-shadow: none !important; }
+.tarot-symbol i { background: #45e8eb !important; box-shadow: none !important; animation: none !important; }
+.tarot-symbol i::after { background: #45e8eb !important; }
+.tarot-keywords span, .tarot-deck-keywords span { color: #f3d79c !important; background: #2a251e !important; border-color: #735b3c !important; }
+.tarot-reading { background: #0b1825 !important; border-color: #344f58 !important; }
+.tarot-reading strong { color: #e2b86d !important; }
+.tarot-reading p, .tarot-summary p, .tarot-deck-intro { color: #aebcbe !important; }
+.tarot-summary { background: #111d2a !important; border-color: #8a6d43 !important; }
+.tarot-summary p:first-of-type { color: #f3d79c !important; }
+.tarot-spread-table { background: #09141f !important; border-color: #344f58 !important; }
+.tarot-spread-row { border-color: #263e47 !important; color: #b7c5c7 !important; }
+.spread-head { color: #e2b86d !important; background: #111f2a !important; }
+.tarot-spread-row strong, .tarot-spread-row b { color: #f3d79c !important; }
+.tarot-deck-tile { background: #0e1a28 !important; background-image: none !important; border-color: #705737 !important; box-shadow: none !important; }
+.tarot-deck-tile:hover { border-color: #e2b86d !important; box-shadow: 0 14px 28px rgba(0, 0, 0, .3) !important; }
+.tarot-deck-core { background: #101d2b !important; box-shadow: none !important; border-color: #735b3c !important; }
+.tarot-deck-core::before, .tarot-deck-core::after { border-color: #735b3c !important; }
+.tarot-deck-core > span, .tarot-deck-tile strong, .tarot-deck-tile small { color: #f3d79c !important; text-shadow: none !important; }
+.tarot-deck-filters button { color: #c3b18e !important; background: #0c1825 !important; border-color: #735b3c !important; border-radius: 4px !important; }
+.tarot-deck-filters button:hover, .tarot-deck-filters button.selected { color: #071217 !important; background: #e2b86d !important; border-color: #f3d79c !important; box-shadow: none !important; }
+
+/* Guides stay transparent; only the readable message surface gets a solid theme. */
+.guide-pet, .guide-art { background: transparent !important; }
+.guide-bubble { background: #0b1825 !important; background-image: none !important; border-color: #2b6570 !important; box-shadow: 0 16px 36px rgba(0, 0, 0, .34) !important; backdrop-filter: none !important; }
+.guide-bubble::after { background: #0b1825 !important; border-color: #2b6570 !important; }
+.guide-action { color: #071217 !important; background: #45e8eb !important; border-color: #8df3f2 !important; border-radius: 5px !important; }
+.guide-saju .guide-bubble, .guide-tarot .guide-bubble { background: #111b27 !important; border-color: #8a6d43 !important; }
+.guide-saju .guide-bubble::after, .guide-tarot .guide-bubble::after { background: #111b27 !important; border-color: #8a6d43 !important; }
+.guide-saju .guide-action, .guide-tarot .guide-action { color: #071217 !important; background: #e2b86d !important; border-color: #f3d79c !important; }
+
+/* Detail pages: no accent rail, no title chip, more useful reading structure. */
+.detail-page { color: #edf4f2 !important; }
+.detail-back { color: #93edef !important; }
+.detail-back:hover { color: #f3d79c !important; }
+.detail-header { padding-left: 0 !important; padding-bottom: 18px !important; border-left: 0 !important; border-bottom: 1px solid #293c47 !important; }
+.detail-header h1 { color: #edf4f2 !important; }
+.detail-header p { color: #aab8bb !important; }
+.detail-label { display: block !important; margin-bottom: 9px; color: #45e8eb !important; font: 700 10px 'DM Sans', 'Noto Sans KR', sans-serif; letter-spacing: .08em; }
+.detail-page .section-card { box-shadow: var(--shadow) !important; }
+.detail-evidence-list > div, .tarot-detail-cards > div { padding: 12px 0 !important; border-left: 0 !important; border-bottom: 1px solid #293c47 !important; background: transparent !important; }
+.detail-evidence-list > div:last-child, .tarot-detail-cards > div:last-child { border-bottom: 0 !important; }
+.detail-evidence-list strong { color: #45e8eb !important; }
+.detail-list, .detail-note, .detail-disclaimer { color: #aab8bb !important; }
+.detail-rewrite-panel pre { color: #b7f1ed !important; background: #07131d !important; border-color: #2c5d66 !important; }
+.detail-callout, .detail-direction-note, .detail-method-panel, .detail-checklist-panel, .saju-detail-observation, .tarot-detail-application { background: #101f29 !important; border-color: #31505a !important; }
+.detail-step-list li::before { color: #071217 !important; background: #45e8eb !important; }
+.detail-step-list strong, .detail-checklist li { color: #edf4f2 !important; }
+.detail-step-list span { color: #9fb2b5 !important; }
+.detail-checklist li::before { color: #e2b86d !important; }
+.saju-detail-page .detail-label, .tarot-detail-page .detail-label { color: #e2b86d !important; }
+.saju-detail-page .section-card { border-color: #675538 !important; }
+.saju-detail-page .detail-action-box { background: #211d18 !important; border-color: #705737 !important; }
+.saju-detail-page .detail-action-box strong, .saju-detail-page .detail-bar-row b { color: #f3d79c !important; }
+.saju-detail-page .detail-bar-row > div { background: #283a3d !important; }
+.tarot-detail-page .section-card { border-color: #675538 !important; }
+.tarot-detail-card > img { background: #101b28 !important; }
+.tarot-detail-card h2, .tarot-detail-summary h2 { color: #f3d79c !important; }
+.tarot-detail-card p, .tarot-detail-summary p, .tarot-detail-page .section-card > p { color: #aebcbe !important; }
+.tarot-detail-card > div > strong, .tarot-detail-cards strong { color: #e2b86d !important; }
+.detail-keywords span { padding: 0 !important; border: 0 !important; border-radius: 0 !important; color: #e2b86d !important; background: transparent !important; }
+.detail-keywords span + span::before { content: ' · '; color: #74644a; }
+
+@media (max-width: 720px) {
+  .detail-page { width: min(100% - 28px, 1040px); }
+  .detail-header { margin-bottom: 20px; }
+  .saju-moon-hero, .tarot-portal-hero, .prompt-lab-banner { border-radius: 9px !important; }
+}

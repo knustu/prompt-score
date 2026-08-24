@@ -827,6 +827,19 @@ function TarotDeckTile({ card }: { card: TarotCard }): ReactElement {
   return <article className={`tarot-deck-tile tarot-deck-${card.arcana.toLowerCase()}`} style={tarotCardStyle(index)} aria-label={`${card.name} · ${card.aiArchetype ?? 'NEURAL ARCHETYPE'}`}><img className="tarot-card-art" src={`${TAROT_ASSET_PATH}/${card.id}.png`} alt="" aria-hidden="true" loading="lazy" /><div className="tarot-deck-hud"><span>{String(index + 1).padStart(2, '0')}</span><em>{TAROT_ARCANA_LABELS[card.arcana]}</em></div><div className="tarot-deck-core" aria-hidden="true"><i /><span>{TAROT_SYMBOLS[card.arcana]}</span><b>{String(index + 1).padStart(2, '0')}</b></div><strong>{card.name}</strong><small>{card.aiArchetype ?? 'NEURAL ARCHETYPE'}</small><div className="tarot-deck-keywords">{card.uprightKeywords.slice(0, 2).map((keyword) => <span key={keyword}>{keyword}</span>)}</div></article>;
 }
 
+const PROMPT_DETAIL_GUIDANCE: Record<string, { what: string; read: string; next: string }> = {
+  goal: { what: 'AI가 해야 할 일과 완료 기준이 얼마나 선명한지 봅니다.', read: '동사만 있는 요청은 작업은 보이지만 “어디까지 하면 끝인지”가 흐릴 수 있습니다.', next: '결과를 받았을 때 성공이라고 판단할 기준을 한 문장 추가하세요.' },
+  context: { what: '현재 상황, 이미 가진 자료, 전제 조건이 담겼는지 봅니다.', read: '맥락이 없으면 AI가 비어 있는 부분을 일반적인 가정으로 채우게 됩니다.', next: '현재 상태와 참고할 자료를 한두 문장으로 먼저 적으세요.' },
+  audience: { what: '누가 읽는지와 말투·난이도가 지정됐는지 봅니다.', read: '대상에 따라 같은 내용도 설명의 깊이와 어휘가 달라집니다.', next: '독자의 수준과 원하는 말투를 함께 지정하세요.' },
+  constraints: { what: '분량, 기간, 예산, 포함·제외 조건을 확인합니다.', read: '조건은 답변의 범위를 줄여 원하는 결과에 가까워지게 합니다.', next: '반드시 지킬 조건과 우선순위를 구분해 적으세요.' },
+  role: { what: 'AI가 어떤 관점과 책임 범위에서 답할지 봅니다.', read: '역할이 없으면 답변의 전문성·시점·판단 기준이 매번 달라질 수 있습니다.', next: '필요한 역할과 먼저 확인할 관점을 한 줄로 지정하세요.' },
+  output: { what: '결과의 형식, 순서, 필수 항목이 지정됐는지 봅니다.', read: '형식을 미리 정하면 결과를 비교하고 바로 사용하기 쉬워집니다.', next: '표·목록·단계와 필수 필드를 함께 적으세요.' },
+  examples: { what: '원하는 결과의 샘플이나 참고 기준이 있는지 봅니다.', read: '예시는 설명을 길게 쓰지 않고도 “이 정도의 결”을 전달합니다.', next: '좋은 예시 하나와 피하고 싶은 예시 하나를 넣어보세요.' },
+  decomposition: { what: '복잡한 작업이 순서와 단계로 나뉘었는지 봅니다.', read: '큰 요청을 나누면 누락을 발견하고 중간 결과를 확인하기 쉽습니다.', next: '먼저 할 일·다음 할 일·마지막 점검을 나눠 적으세요.' },
+  verification: { what: '답변을 검토할 기준과 오류 확인 절차가 있는지 봅니다.', read: '검증 기준이 있으면 그럴듯하지만 틀린 답변을 걸러내기 쉽습니다.', next: '답변 끝에 오류·누락·가정을 점검하는 체크리스트를 요청하세요.' },
+  specificity: { what: '날짜, 숫자, 대상, 도구처럼 확인 가능한 정보가 있는지 봅니다.', read: '구체적인 값은 AI가 넓은 가능성 대신 실행 가능한 선택지를 만들게 합니다.', next: '가능하면 숫자·기한·대상을 하나씩 더 명시하세요.' },
+};
+
 function PromptDetailPage({ navigate }: { navigate: Navigate }): ReactElement {
   const query = new URLSearchParams(window.location.search);
   const shared = query.get('share') ? decodeSharePayload(query.get('share') ?? '') : null;
@@ -835,15 +848,35 @@ function PromptDetailPage({ navigate }: { navigate: Navigate }): ReactElement {
   const section = query.get('section') ?? 'score-summary';
   const categoryId = PROMPT_CATEGORIES.find((category) => category.id === section.replace(/^category-/u, ''))?.id;
   const category = categoryId ? result.categories[categoryId] : undefined;
+  const guidance = PROMPT_DETAIL_GUIDANCE[categoryId ?? ''] ?? PROMPT_DETAIL_GUIDANCE.goal;
   const score = category?.score ?? result.overallScore;
   const title = category?.categoryName ?? (section === 'evidence' ? '감지된 근거' : section === 'improvements' || section === 'suggestions' ? '개선 기회와 다음 행동' : '전체 점수');
   const evidence = category?.evidence ?? result.evidence;
   const challenge = result.challengeId ? getChallenge(result.challengeId) : undefined;
   const rewrittenPrompt = challenge?.strongPrompt ?? '목표: 원하는 결과를 한 문장으로 정의하기\n상황: 대상과 현재 맥락 적기\n조건: 지켜야 할 기준과 출력 형식 정하기\n검증: 결과를 확인할 기준 한 가지 적기';
-  return <div className="page-wrap page-content detail-page prompt-detail-page"><button className="detail-back" type="button" onClick={() => navigate('/results')}>← 결과로 돌아가기</button><div className="detail-header"><span className="detail-kicker">PROMPT EXPLANATION</span><h1>{title}</h1><p>선택한 신호가 점수에 어떤 영향을 주었는지, 다음 프롬프트에서 어떻게 활용할지 정리했습니다.</p></div><div className="prompt-detail-grid"><SectionCard className="detail-score-panel"><span className="detail-label">선택된 점수</span><strong>{score}<small>/100</small></strong><h2>{category?.level ?? result.level} · {category?.categoryName ?? '전체 구조'}</h2><p>{category?.why ?? `전체 점수 ${result.overallScore}점은 목표·맥락·출력 조건을 포함한 프롬프트 구조를 종합한 결과입니다.`}</p></SectionCard><SectionCard className="detail-evidence-panel"><span className="detail-label">감지된 근거</span><h2>왜 이 점수가 나왔을까요?</h2>{evidence.length ? <div className="detail-evidence-list">{evidence.slice(0, 10).map((item, index) => <div key={`${item.ruleId}-${index}`}><strong>{item.signal}</strong><p>{item.text}</p></div>)}</div> : <p className="muted">이 공유 결과에는 원문 근거가 포함되지 않았습니다.</p>}</SectionCard><SectionCard className="detail-improvement-panel"><span className="detail-label">약점과 개선</span><h2>다음에 바꿔볼 점</h2>{category?.missingElements.length ? <ul className="detail-list">{category.missingElements.map((item) => <li key={item}>{item}</li>)}</ul> : <ul className="detail-list">{result.weaknesses.slice(0, 3).map((item) => <li key={item.categoryId}>{item.categoryName}: {item.tip}</li>)}</ul>}<div className="detail-divider" /><strong>추천 행동</strong><ol className="detail-list ordered">{result.recommendations.slice(0, 4).map((item) => <li key={item}>{item}</li>)}</ol></SectionCard><SectionCard className="detail-rewrite-panel"><span className="detail-label">다시 써보기</span><h2>개선된 프롬프트 예시</h2><pre>{rewrittenPrompt}</pre><p className="detail-note">다음 질문에서는 목표·상황·조건·검증 중 하나만 더 명확하게 적어도 점검하기 쉬워집니다.</p></SectionCard></div></div>;
+  return <div className="page-wrap page-content detail-page prompt-detail-page">
+    <button className="detail-back" type="button" onClick={() => navigate('/results')}>← 결과로 돌아가기</button>
+    <div className="detail-header"><h1>{title}</h1><p>선택한 신호가 점수에 어떤 영향을 주었는지, 다음 프롬프트에서 어떻게 활용할지 정리했습니다.</p></div>
+    <div className="prompt-detail-grid">
+      <SectionCard className="detail-score-panel"><span className="detail-label">현재 점수</span><strong>{score}<small>/100</small></strong><h2>{category?.level ?? result.level} · {category?.categoryName ?? '전체 구조'}</h2><p>{category?.why ?? `전체 점수 ${result.overallScore}점은 목표·맥락·출력 조건을 포함한 프롬프트 구조를 종합한 결과입니다.`}</p><div className="detail-callout"><strong>이 항목이 보는 것</strong><p>{guidance.what}</p></div></SectionCard>
+      <SectionCard className="detail-evidence-panel"><span className="detail-label">근거를 확인하세요</span><h2>왜 이 점수가 나왔을까요?</h2>{evidence.length ? <div className="detail-evidence-list">{evidence.slice(0, 10).map((item, index) => <div key={`${item.ruleId}-${index}`}><strong>{item.signal}</strong><p>{item.text}</p></div>)}</div> : <p className="muted">이 공유 결과에는 원문 근거가 포함되지 않았습니다.</p>}<p className="detail-note">표시된 근거는 입력문에서 감지된 구조적 신호이며, AI 답변의 품질 자체를 뜻하지 않습니다.</p></SectionCard>
+      <SectionCard className="detail-improvement-panel"><span className="detail-label">다음 수정</span><h2>한 번에 하나씩 보완하기</h2>{category?.missingElements.length ? <ul className="detail-list">{category.missingElements.map((item) => <li key={item}>{item}</li>)}</ul> : <ul className="detail-list">{result.weaknesses.slice(0, 3).map((item) => <li key={item.categoryId}>{item.categoryName}: {item.tip}</li>)}</ul>}<p className="detail-reading-guide">{guidance.read}</p><div className="detail-divider" /><strong>이번 입력에서 먼저 해볼 일</strong><p>{guidance.next}</p><ol className="detail-list ordered">{result.recommendations.slice(0, 4).map((item) => <li key={item}>{item}</li>)}</ol></SectionCard>
+      <SectionCard className="detail-rewrite-panel"><span className="detail-label">다시 써보기</span><h2>개선된 프롬프트 예시</h2><pre>{rewrittenPrompt}</pre><p className="detail-note">예시를 그대로 복사하기보다, 내 목표·상황·조건에 맞는 단어로 바꿔보세요.</p></SectionCard>
+      <SectionCard className="detail-method-panel"><span className="detail-label">읽는 순서</span><h2>점수를 사용하는 세 단계</h2><ol className="detail-step-list"><li><strong>신호</strong><span>어떤 단어와 구조가 감지됐는지 확인합니다.</span></li><li><strong>빈칸</strong><span>내가 원하는 결과에 빠진 조건을 고릅니다.</span></li><li><strong>재시도</strong><span>한 가지 조건만 추가해 결과의 차이를 비교합니다.</span></li></ol></SectionCard>
+      <SectionCard className="detail-checklist-panel"><span className="detail-label">다음 질문 전</span><h2>짧은 체크리스트</h2><ul className="detail-checklist"><li>무엇을 만들거나 판단해야 하나요?</li><li>현재 상황과 대상은 누구인가요?</li><li>반드시 지킬 조건과 출력 형식은 무엇인가요?</li><li>답변을 어떻게 검토할 건가요?</li></ul></SectionCard>
+    </div>
+  </div>;
 }
 
 const SAJU_DETAIL_LABELS: Record<string, string> = { 'five-elements': '오행의 흐름', 'four-pillars': '사주 네 기둥', daewoon: '대운 흐름', seun: '세운 흐름', 'monthly-luck': '월운 흐름', interpretation: '카테고리별 리딩' };
+const ELEMENT_DETAIL_OBSERVATIONS: Record<FiveElement, string[]> = {
+  목: ['새로운 일을 시작할 때 에너지가 살아나는지', '관계를 넓히는 대신 마무리가 밀리고 있지는 않은지', '이번 주에 키울 일과 끝낼 일을 따로 정했는지'],
+  화: ['생각을 밖으로 표현할 때 속도가 붙는지', '반응이 빨라진 뒤 회복할 시간이 있었는지', '결정 전 잠깐 멈추는 습관을 만들 수 있는지'],
+  토: ['사람과 일을 안정시키는 역할을 자주 맡는지', '익숙한 방식을 지키느라 새 신호를 놓치지는 않는지', '지킬 루틴과 실험할 루틴을 구분했는지'],
+  금: ['복잡한 일을 기준과 순서로 정리하는지', '정확한 판단에 관계의 맥락도 포함했는지', '기준과 예외 조건을 함께 적어두었는지'],
+  수: ['정보를 모으는 시간이 실제 행동으로 이어지는지', '상황에 맞춰 경로를 바꾸는 힘을 어떻게 쓰는지', '탐색을 멈추고 시작할 기준을 정했는지'],
+};
+const SAJU_TIMING_GUIDANCE: Record<string, string> = { daewoon: '대운은 긴 호흡의 변화 구간을 보는 표입니다. 중요한 결정을 대신하기보다, 몇 년 단위로 어떤 역량과 생활 기반을 쌓을지 점검하는 데 사용하세요.', seun: '세운은 한 해의 주제를 돌아보는 표입니다. 올해 일어난 일을 미리 정해진 결과로 해석하기보다, 반복된 선택과 새로 생긴 관심을 기록해보세요.', 'monthly-luck': '월운은 짧은 주기의 점검표입니다. 한 달의 분위기를 단정하기보다, 이번 달에 조정할 일정·관계·회복 시간을 구체적으로 정하는 데 활용하세요.' };
 
 function SajuDetailPage({ navigate }: { navigate: Navigate }): ReactElement {
   const query = new URLSearchParams(window.location.search);
@@ -852,11 +885,44 @@ function SajuDetailPage({ navigate }: { navigate: Navigate }): ReactElement {
   if (!result) return <EmptyState title="상세 설명을 열 수 없어요" text="먼저 사주를 계산한 뒤 다시 시도해주세요." button="사주로 돌아가기" onClick={() => navigate('/saju')} />;
   const section = query.get('section') ?? 'five-elements';
   const element = section.startsWith('element-') ? section.slice('element-'.length) as FiveElement : undefined;
+  const selectedElement = element && ELEMENT_GUIDANCE[element] ? element : undefined;
   const interpretationKey = section.startsWith('interpretation-') ? section.slice('interpretation-'.length) : undefined;
-  const title = element ? `${ELEMENT_LABELS[element] ?? element}를 읽는 방법` : interpretationKey ? `${SAJU_TOPIC_LABELS[interpretationKey as SajuReadingTopic] ?? '사주'} 리딩` : SAJU_DETAIL_LABELS[section] ?? '사주 상세 설명';
+  const title = selectedElement ? `${ELEMENT_LABELS[selectedElement]}를 읽는 방법` : interpretationKey ? `${SAJU_TOPIC_LABELS[interpretationKey as SajuReadingTopic] ?? '사주'} 리딩` : SAJU_DETAIL_LABELS[section] ?? '사주 상세 설명';
   const chart = result.chart;
   const timingItems = section === 'daewoon' ? chart?.daewoon.map((item) => `${item.startAge}~${item.endAge}세 · ${item.pillar} · ${item.direction}`) : section === 'seun' ? chart?.annualLuck.map((item) => `${item.label} · ${item.pillar}`) : section === 'monthly-luck' ? chart?.monthlyLuck.slice(0, 6).map((item) => `${item.label} · ${item.pillar}`) : undefined;
-  return <div className="page-wrap page-content detail-page saju-detail-page"><button className="detail-back" type="button" onClick={() => navigate('/saju')}>← 사주 결과로 돌아가기</button><div className="detail-header"><span className="detail-kicker">SAJU · QUIET READING</span><h1>{title}</h1><p>차트의 단서를 생활 장면과 계획 점검의 언어로 풀어봅니다. 정해진 미래를 말하는 페이지가 아닙니다.</p></div>{element ? <div className="saju-detail-grid"><SectionCard className="saju-detail-feature"><span className="detail-label">선택한 오행</span><strong className="saju-element-mark" style={{ color: ELEMENT_COLORS[element] }}>{ELEMENT_LABELS[element]}</strong><h2>{ELEMENT_GUIDANCE[element]?.meaning}</h2><p>{ELEMENT_GUIDANCE[element]?.expression}</p></SectionCard><SectionCard><span className="detail-label">생활에서 살펴볼 점</span><h2>균형 질문</h2><p>{ELEMENT_GUIDANCE[element]?.imbalance}</p><div className="detail-action-box"><strong>작은 제안</strong><p>{ELEMENT_GUIDANCE[element]?.suggestion}</p></div></SectionCard><SectionCard className="saju-detail-bars"><span className="detail-label">현재 분포</span>{ELEMENT_ORDER.map((item) => <div className="detail-bar-row" key={item}><span>{ELEMENT_LABELS[item]}</span><div><i style={{ width: `${(result.elements[item] / Math.max(...ELEMENT_ORDER.map((value) => result.elements[value]), 1)) * 100}%`, background: ELEMENT_COLORS[item] }} /></div><b>{result.elements[item]}</b></div>)}</SectionCard></div> : interpretationKey ? <SectionCard className="saju-detail-reading"><span className="detail-label">생활 언어로 읽기</span><h2>{SAJU_TOPIC_LABELS[interpretationKey as SajuReadingTopic] ?? '사주 리딩'}</h2><p>{result.interpretations[interpretationKey as keyof SajuResult['interpretations']] ?? result.interpretations.general}</p><div className="detail-action-box"><strong>돌아볼 질문</strong><p>이 해석이 내 일상에서 어떤 장면으로 나타나는지 한 가지 사례를 적어보세요.</p></div></SectionCard> : timingItems ? <SectionCard className="saju-detail-timing"><span className="detail-label">선택한 시간표</span><h2>{SAJU_DETAIL_LABELS[section]}</h2><ul className="detail-list">{timingItems.length ? timingItems.map((item) => <li key={item}>{item}</li>) : <li>성별 미지정으로 대운을 계산하지 않았습니다.</li>}</ul><p className="detail-note">이 흐름은 계획을 점검하는 상징적 참고 자료이며, 사건이나 결과를 보장하지 않습니다.</p></SectionCard> : <div className="saju-detail-grid"><SectionCard className="saju-detail-feature"><span className="detail-label">오행</span><h2>전체 흐름을 한눈에 보기</h2><p>{result.interpretations.general}</p></SectionCard><SectionCard><span className="detail-label">일상 연결</span><h2>이 결과를 써보는 방법</h2><p>지금의 생활에서 에너지가 모이는 일과 회복이 필요한 일을 각각 하나씩 적어보세요. 차트는 선택을 대신하지 않고 관찰의 언어로 사용합니다.</p></SectionCard></div>}<p className="detail-disclaimer">사주 결과는 오락과 자기 성찰을 위한 참고용입니다. 재정·의료·진로·관계 결정을 위한 유일한 근거로 사용하지 마세요.</p></div>;
+  const maxDistribution = Math.max(...ELEMENT_ORDER.map((item) => result.elements[item]), 1);
+  const interpretation = interpretationKey ? result.interpretations[interpretationKey as keyof SajuResult['interpretations']] ?? result.interpretations.general : result.interpretations.general;
+  return <div className="page-wrap page-content detail-page saju-detail-page">
+    <button className="detail-back" type="button" onClick={() => navigate('/saju')}>← 사주 결과로 돌아가기</button>
+    <div className="detail-header"><h1>{title}</h1><p>차트의 단서를 생활 장면과 계획 점검의 언어로 풀어봅니다. 정해진 미래를 말하는 페이지가 아닙니다.</p></div>
+    {selectedElement ? <div className="saju-detail-grid">
+      <SectionCard className="saju-detail-feature"><span className="detail-label">선택한 오행</span><strong className="saju-element-mark" style={{ color: ELEMENT_COLORS[selectedElement] }}>{ELEMENT_LABELS[selectedElement]}</strong><h2>{ELEMENT_GUIDANCE[selectedElement].meaning}</h2><p>{ELEMENT_GUIDANCE[selectedElement].expression}</p></SectionCard>
+      <SectionCard><span className="detail-label">균형을 살피는 질문</span><h2>생활에서 어떻게 보일까요?</h2><p>{ELEMENT_GUIDANCE[selectedElement].imbalance}</p><div className="detail-action-box"><strong>작은 제안</strong><p>{ELEMENT_GUIDANCE[selectedElement].suggestion}</p></div></SectionCard>
+      <SectionCard className="saju-detail-observation"><span className="detail-label">관찰 포인트</span><h2>이번 주에 확인해볼 장면</h2><ul className="detail-list">{ELEMENT_DETAIL_OBSERVATIONS[selectedElement].map((item) => <li key={item}>{item}</li>)}</ul></SectionCard>
+      <SectionCard className="saju-detail-bars"><span className="detail-label">현재 분포</span>{ELEMENT_ORDER.map((item) => <div className="detail-bar-row" key={item}><span>{ELEMENT_LABELS[item]}</span><div><i style={{ width: `${(result.elements[item] / maxDistribution) * 100}%`, background: ELEMENT_COLORS[item] }} /></div><b>{result.elements[item]}</b></div>)}<p className="detail-note">분포는 성향을 확정하는 수치가 아니라, 어떤 생활 질문을 먼저 꺼낼지 정하는 참고표입니다.</p></SectionCard>
+    </div> : interpretationKey ? <div className="saju-detail-grid">
+      <SectionCard className="saju-detail-reading"><span className="detail-label">생활 언어로 읽기</span><h2>{SAJU_TOPIC_LABELS[interpretationKey as SajuReadingTopic] ?? '사주 리딩'}</h2><p>{interpretation}</p><div className="detail-action-box"><strong>돌아볼 질문</strong><p>이 해석이 내 일상에서 어떤 장면으로 나타나는지 한 가지 사례를 적어보세요.</p></div></SectionCard>
+      <SectionCard className="saju-detail-observation"><span className="detail-label">실험으로 바꾸기</span><h2>이번 주에 관찰할 것</h2><ol className="detail-step-list"><li><strong>장면 고르기</strong><span>일·공부·관계 중 하나의 구체적인 장면을 고릅니다.</span></li><li><strong>기록하기</strong><span>반복되는 반응과 몸의 리듬을 짧게 적습니다.</span></li><li><strong>조정하기</strong><span>생활 습관 하나만 바꾸고 다음 주에 차이를 봅니다.</span></li></ol></SectionCard>
+      <SectionCard className="saju-detail-reading"><span className="detail-label">해석의 경계</span><h2>참고 자료로 사용하는 법</h2><p>이 문장은 가능성을 관찰하는 언어입니다. 나와 맞지 않는 부분은 내려놓고, 실제 경험과 선택을 더 중요한 기준으로 삼아주세요.</p></SectionCard>
+    </div> : timingItems ? <div className="saju-detail-grid">
+      <SectionCard className="saju-detail-timing"><span className="detail-label">선택한 시간표</span><h2>{SAJU_DETAIL_LABELS[section]}</h2><p>{SAJU_TIMING_GUIDANCE[section]}</p><ul className="detail-list">{timingItems.length ? timingItems.map((item) => <li key={item}>{item}</li>) : <li>성별 미지정으로 대운을 계산하지 않았습니다.</li>}</ul></SectionCard>
+      <SectionCard className="saju-detail-observation"><span className="detail-label">시간표를 쓰는 질문</span><h2>무엇을 준비하면 좋을까요?</h2><ul className="detail-list"><li>지금 유지해야 할 기반은 무엇인가요?</li><li>새로 시험할 선택은 무엇인가요?</li><li>결과가 아니라 과정으로 확인할 지표는 무엇인가요?</li></ul></SectionCard>
+    </div> : <div className="saju-detail-grid">
+      <SectionCard className="saju-detail-feature"><span className="detail-label">오행</span><h2>전체 흐름을 한눈에 보기</h2><p>{result.interpretations.general}</p></SectionCard>
+      <SectionCard><span className="detail-label">일상 연결</span><h2>이 결과를 써보는 방법</h2><p>지금의 생활에서 에너지가 모이는 일과 회복이 필요한 일을 각각 하나씩 적어보세요. 차트는 선택을 대신하지 않고 관찰의 언어로 사용합니다.</p><div className="detail-action-box"><strong>오늘의 기록</strong><p>오늘 가장 오래 머문 일 하나와, 미뤄둔 일 하나를 적고 내일의 첫 행동을 정해보세요.</p></div></SectionCard>
+      <SectionCard className="saju-detail-observation"><span className="detail-label">다음 단계</span><h2>작게 확인하고 다시 읽기</h2><p>한 번의 결과보다 같은 질문을 생활 속에서 반복해 관찰할 때, 이 페이지의 언어가 더 유용해집니다.</p></SectionCard>
+    </div>}
+    <p className="detail-disclaimer">사주 결과는 오락과 자기 성찰을 위한 참고용입니다. 재정·의료·진로·관계 결정을 위한 유일한 근거로 사용하지 마세요.</p>
+  </div>;
+}
+
+function tarotTopicMeaning(card: TarotCard, category: TarotCategory): string {
+  if (category === 'love') return card.loveMeaning;
+  if (category === 'study') return card.studyMeaning;
+  if (category === 'career') return card.careerMeaning;
+  if (category === 'money') return card.moneyMeaning;
+  if (category === 'decision') return `${card.generalMeaning} 선택의 기준을 한 문장으로 적어보세요.`;
+  return card.generalMeaning;
 }
 
 function TarotDetailPage({ navigate }: { navigate: Navigate }): ReactElement {
@@ -867,7 +933,22 @@ function TarotDetailPage({ navigate }: { navigate: Navigate }): ReactElement {
   const section = query.get('section') ?? 'final-interpretation';
   const selected = reading.cards.find((item) => item.card.id === query.get('card')) ?? reading.cards[0];
   const keywords = selected ? (selected.reversed ? selected.card.reversedKeywords : selected.card.uprightKeywords) : [];
-  return <div className="page-wrap page-content detail-page tarot-detail-page"><button className="detail-back" type="button" onClick={() => navigate('/tarot')}>← 타로 결과로 돌아가기</button><div className="detail-header"><span className="detail-kicker">TAROT · ARCANA NOTE</span><h1>{section === 'final-interpretation' ? '이번 리딩의 전체 흐름' : selected?.card.name ?? '선택한 카드'}</h1><p>{reading.categoryLabel} 주제에 맞춰 카드의 위치와 방향을 읽고, 오늘 해볼 수 있는 행동으로 연결합니다.</p></div>{section === 'final-interpretation' ? <SectionCard className="tarot-detail-summary"><span className="detail-label">최종 해석</span><h2>{reading.summary}</h2><div className="tarot-detail-cards">{reading.cards.map((item) => <div key={`${item.card.id}-${item.position}`}><strong>{item.card.name}</strong><span>{item.position} · {item.reversed ? '역방향' : '정방향'}</span><p>{item.interpretation}</p></div>)}</div><div className="detail-action-box"><strong>오늘의 다음 행동</strong><p>카드가 남긴 단어 하나를 골라, 오늘 실제로 확인할 수 있는 작은 행동으로 바꿔보세요.</p></div></SectionCard> : selected ? <div className="tarot-detail-grid"><SectionCard className="tarot-detail-card"><img src={`${TAROT_ASSET_PATH}/${selected.card.id}.png`} alt="" aria-hidden="true" /><div><span className="detail-label">{selected.position} · {reading.categoryLabel}</span><h2>{selected.card.name}</h2><strong>{selected.reversed ? '역방향으로 읽기' : '정방향으로 읽기'}</strong><p>{selected.interpretation}</p></div></SectionCard><SectionCard><span className="detail-label">상징과 키워드</span><h2>{selected.reversed ? '역방향의 신호' : '정방향의 신호'}</h2><div className="detail-keywords">{keywords.map((keyword) => <span key={keyword}>{keyword}</span>)}</div><p>{selected.reversed ? selected.card.warning : selected.card.generalMeaning}</p></SectionCard><SectionCard><span className="detail-label">실천 리플렉션</span><h2>이 카드를 오늘 어떻게 써볼까요?</h2><div className="detail-action-box"><strong>돌아볼 질문</strong><p>{selected.reversed ? '지금 속도를 늦추고 다시 확인해야 할 신호는 무엇인가요?' : '이 카드의 강점을 오늘 어떤 행동으로 작게 시험해볼 수 있나요?'}</p></div><div className="detail-action-box"><strong>다음 행동</strong><p>{selected.advice}</p></div></SectionCard></div> : <p className="detail-note">선택한 카드를 찾지 못했습니다.</p>}<p className="detail-disclaimer">{reading.disclaimer}</p></div>;
+  const topicMeaning = selected ? tarotTopicMeaning(selected.card, reading.category) : '';
+  return <div className="page-wrap page-content detail-page tarot-detail-page">
+    <button className="detail-back" type="button" onClick={() => navigate('/tarot')}>← 타로 결과로 돌아가기</button>
+    <div className="detail-header"><h1>{section === 'final-interpretation' ? '이번 리딩의 전체 흐름' : selected?.card.name ?? '선택한 카드'}</h1><p>{reading.categoryLabel} 주제에 맞춰 카드의 위치와 방향을 읽고, 오늘 해볼 수 있는 행동으로 연결합니다.</p></div>
+    {section === 'final-interpretation' ? <div className="tarot-detail-grid">
+      <SectionCard className="tarot-detail-summary"><span className="detail-label">전체 흐름</span><h2>{reading.summary}</h2><div className="tarot-detail-cards">{reading.cards.map((item) => <div key={`${item.card.id}-${item.position}`}><strong>{item.card.name}</strong><span>{item.position} · {item.reversed ? '역방향' : '정방향'}</span><p>{item.interpretation}</p></div>)}</div></SectionCard>
+      <SectionCard className="tarot-detail-application"><span className="detail-label">리딩을 생활로 옮기기</span><h2>카드의 단어를 행동으로 바꾸기</h2><ol className="detail-step-list"><li><strong>한 단어 고르기</strong><span>오늘 가장 오래 남는 키워드 하나를 고릅니다.</span></li><li><strong>장면 연결하기</strong><span>그 단어가 필요한 일·관계·결정의 장면을 찾습니다.</span></li><li><strong>작게 실행하기</strong><span>확인 가능한 행동 하나로 바꾸고 하루 뒤 돌아봅니다.</span></li></ol></SectionCard>
+      <SectionCard className="tarot-detail-application"><span className="detail-label">다시 질문하기</span><h2>다음 질문으로 남길 문장</h2><p>“이 흐름을 바꾸기 위해 내가 오늘 확인할 수 있는 사실은 무엇인가?”</p><p>타로는 결론을 대신하기보다, 내가 놓친 감정과 선택지를 다시 바라보는 장치로 사용하세요.</p></SectionCard>
+    </div> : selected ? <div className="tarot-detail-grid">
+      <SectionCard className="tarot-detail-card"><img src={`${TAROT_ASSET_PATH}/${selected.card.id}.png`} alt="" aria-hidden="true" /><div><span className="detail-label">{selected.position} · {reading.categoryLabel}</span><h2>{selected.card.name}</h2><strong>{selected.reversed ? '역방향으로 읽기' : '정방향으로 읽기'}</strong><p>{selected.interpretation}</p></div></SectionCard>
+      <SectionCard><span className="detail-label">상징과 방향</span><h2>{selected.reversed ? '역방향의 신호' : '정방향의 신호'}</h2><div className="detail-keywords">{keywords.map((keyword) => <span key={keyword}>{keyword}</span>)}</div><p>{selected.reversed ? selected.card.warning : selected.card.generalMeaning}</p><div className="detail-direction-note"><strong>{selected.reversed ? '멈춰서 확인할 것' : '살려볼 힘'}</strong><p>{selected.reversed ? '지금의 해석을 사실로 확정하기보다, 속도를 늦추고 빠진 정보와 감정을 확인하세요.' : '카드의 강점을 과장하지 않고 오늘 검증할 수 있는 작은 행동으로 옮겨보세요.'}</p></div></SectionCard>
+      <SectionCard className="tarot-detail-application"><span className="detail-label">주제에 연결하기</span><h2>{reading.categoryLabel}에서의 의미</h2><p>{topicMeaning}</p><div className="detail-action-box"><strong>상황 질문</strong><p>{selected.reversed ? '이 주제에서 내가 피하거나 과하게 해석하는 부분은 무엇인가요?' : '이 주제에서 지금 더 분명히 확인하고 싶은 것은 무엇인가요?'}</p></div></SectionCard>
+      <SectionCard className="tarot-detail-application"><span className="detail-label">실천 리플렉션</span><h2>이 카드를 오늘 어떻게 써볼까요?</h2><div className="detail-action-box"><strong>돌아볼 질문</strong><p>{selected.reversed ? '지금 속도를 늦추고 다시 확인해야 할 신호는 무엇인가요?' : '이 카드의 강점을 오늘 어떤 행동으로 작게 시험해볼 수 있나요?'}</p></div><div className="detail-action-box"><strong>다음 행동</strong><p>{selected.advice}</p></div></SectionCard>
+    </div> : <p className="detail-note">선택한 카드를 찾지 못했습니다.</p>}
+    <p className="detail-disclaimer">{reading.disclaimer}</p>
+  </div>;
 }
 
 function ComparePage({ navigate, notify }: { navigate: Navigate; notify: Notify }): ReactElement {
