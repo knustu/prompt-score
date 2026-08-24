@@ -1489,3 +1489,10 @@ label, .saju-form label, .tarot-controls label { color: #b7c5c7 !important; }
   .tarot-detail-page::after { right: -130px; }
   .tarot-detail-page .tarot-detail-card > img { height: 270px; }
 }
+
+/* Keep only card text at the lower edge; artwork stays unobstructed. */
+.tarot-page .tarot-card-copy { position: relative; z-index: 1; display: flex; width: 100%; margin-top: auto; flex-direction: column; align-items: center; padding-bottom: 8px; }
+.tarot-page .tarot-card-copy > strong { min-height: auto; margin-top: 0; }
+.tarot-page .tarot-card-copy > small { margin-top: 8px; color: #e7d7ad !important; }
+.tarot-page .tarot-card-copy .tarot-ai-tag { min-height: auto; margin-top: 10px; }
+.tarot-page .tarot-card-copy .tarot-keywords { margin-top: 9px; }
