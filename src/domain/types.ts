@@ -82,6 +82,7 @@ export interface TarotSharePayload {
   seed: number;
   spread: 1 | 3;
   category: TarotCategory;
+  cardIds?: string[];
 }
 
 export interface SajuSharePayload {

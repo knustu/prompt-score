@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decodeSharePayload, encodeSharePayload } from './ShareCodec';
+import { createTarotShareCode, decodeSharePayload, encodeSharePayload } from './ShareCodec';
 import type { PromptShareSummary } from '../types';
 
 const summary: PromptShareSummary = {
@@ -26,5 +26,10 @@ describe('ShareCodec', () => {
     expect(decodeSharePayload('')).toBeNull();
     expect(decodeSharePayload('ps1.not-valid-json')).toBeNull();
     expect(decodeSharePayload('ps2.eyJ2IjoyfQ')).toBeNull();
+  });
+
+  it('preserves explicitly selected tarot cards in a share code', () => {
+    const code = createTarotShareCode(123456, 3, 'love', ['major-00', 'wands-06', 'cups-03']);
+    expect(decodeSharePayload(code)).toMatchObject({ cardIds: ['major-00', 'wands-06', 'cups-03'] });
   });
 });

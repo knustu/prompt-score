@@ -41,15 +41,9 @@ const categoryMeaning = (card: TarotDrawnCard['card'], category: TarotCategory):
   return card.generalMeaning;
 };
 
-export const drawTarot = (seed: number, spread: 1 | 3, category: TarotCategory): TarotReading => {
-  const random = seededRandom(seed);
-  const deck = [...TAROT_CARDS];
-  for (let index = deck.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(random() * (index + 1));
-    [deck[index], deck[swapIndex]] = [deck[swapIndex], deck[index]];
-  }
+const readingFromCards = (seed: number, cards: TarotDrawnCard['card'][], spread: 1 | 3, category: TarotCategory, random: () => number): TarotReading => {
   const positions = positionLabels(spread);
-  const cards = deck.slice(0, spread).map((card, index) => {
+  const drawnCards = cards.slice(0, spread).map((card, index) => {
     const reversed = random() < 0.32;
     return {
       card,
@@ -60,15 +54,37 @@ export const drawTarot = (seed: number, spread: 1 | 3, category: TarotCategory):
       warning: reversed ? `역방향에서는 ${card.warning}` : card.warning,
     } satisfies TarotDrawnCard;
   });
-  const summary = cards.length === 1
-    ? `${cards[0].card.name} 카드가 ${cards[0].reversed ? '역방향' : '정방향'}으로 나왔습니다. ${cards[0].card.advice}`
-    : `${cards.map((item) => item.card.name).join(' · ')}의 흐름입니다. 현재를 관찰하고 장애물을 구분한 뒤 다음 행동을 작게 정해보세요.`;
-  return { version: 'tarot-v1', seed: seed >>> 0, spread, category, categoryLabel: TAROT_CATEGORY_LABELS[category], cards, summary, disclaimer: TAROT_DISCLAIMER };
+  const summary = drawnCards.length === 1
+    ? `${drawnCards[0].card.name} 카드가 ${drawnCards[0].reversed ? '역방향' : '정방향'}으로 나왔습니다. ${drawnCards[0].card.advice}`
+    : `${drawnCards.map((item) => item.card.name).join(' · ')}의 흐름입니다. 현재를 관찰하고 장애물을 구분한 뒤 다음 행동을 작게 정해보세요.`;
+  return { version: 'tarot-v1', seed: seed >>> 0, spread, category, categoryLabel: TAROT_CATEGORY_LABELS[category], cards: drawnCards, summary, disclaimer: TAROT_DISCLAIMER };
+};
+
+export const drawTarot = (seed: number, spread: 1 | 3, category: TarotCategory): TarotReading => {
+  const random = seededRandom(seed);
+  const deck = [...TAROT_CARDS];
+  for (let index = deck.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(random() * (index + 1));
+    [deck[index], deck[swapIndex]] = [deck[swapIndex], deck[index]];
+  }
+  return readingFromCards(seed, deck.slice(0, spread), spread, category, random);
+};
+
+export const drawTarotFromCards = (seed: number, cardIds: string[], spread: 1 | 3, category: TarotCategory): TarotReading => {
+  const cards = cardIds.map((cardId) => TAROT_CARDS.find((card) => card.id === cardId)).filter((card): card is TarotDrawnCard['card'] => Boolean(card));
+  if (cards.length !== spread || new Set(cards.map((card) => card.id)).size !== spread) throw new Error(`Select exactly ${spread} unique tarot cards.`);
+  return readingFromCards(seed, cards, spread, category, seededRandom(seed ^ 0x9e3779b9));
 };
 
 export const drawTarotCompatibility = (seed: number): TarotReading => {
   // ponytail: one seeded 3-card relationship spread; add richer spreads only if this proves insufficient.
   const reading = drawTarot(seed, 3, 'love');
+  return compatibilityReading(reading);
+};
+
+export const drawTarotCompatibilityFromCards = (seed: number, cardIds: string[]): TarotReading => compatibilityReading(drawTarotFromCards(seed, cardIds, 3, 'love'));
+
+const compatibilityReading = (reading: TarotReading): TarotReading => {
   const positions = ['나의 에너지', '상대의 에너지', '관계의 흐름'];
   const cards = reading.cards.map((card, index) => ({ ...card, position: positions[index] }));
   return {

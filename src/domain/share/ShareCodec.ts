@@ -1,6 +1,7 @@
 import type { ComparisonSharePayload, PromptEvaluationResult, PromptShareSummary, SajuResult, SajuSharePayload, SharePayload, TarotCategory, TarotSharePayload } from '../types';
 import { PROMPT_CATEGORY_IDS } from '../types';
 import { toPromptShareSummary } from '../prompt/PromptEvaluationEngine';
+import { TAROT_CARDS } from '../tarot/TarotCardData';
 
 const PREFIX = 'ps1.';
 
@@ -31,7 +32,9 @@ const isTarotPayload = (payload: unknown): payload is TarotSharePayload => {
   if (!payload || typeof payload !== 'object') return false;
   const value = payload as Partial<TarotSharePayload>;
   const seed = value.seed;
-  return value.v === 1 && value.k === 'tarot' && typeof seed === 'number' && Number.isInteger(seed) && seed >= 0 && (value.spread === 1 || value.spread === 3) && ['general', 'love', 'study', 'career', 'money', 'decision'].includes(value.category ?? '');
+  const cardIds = value.cardIds;
+  const hasValidCards = cardIds === undefined || (Array.isArray(cardIds) && (value.spread === 1 || value.spread === 3) && cardIds.length === value.spread && new Set(cardIds).size === cardIds.length && cardIds.every((id) => typeof id === 'string' && TAROT_CARDS.some((card) => card.id === id)));
+  return value.v === 1 && value.k === 'tarot' && typeof seed === 'number' && Number.isInteger(seed) && seed >= 0 && (value.spread === 1 || value.spread === 3) && ['general', 'love', 'study', 'career', 'money', 'decision'].includes(value.category ?? '') && hasValidCards;
 };
 
 const isSajuPayload = (payload: unknown): payload is SajuSharePayload => {
@@ -59,7 +62,7 @@ export const decodeSharePayload = (encoded: string): SharePayload | null => {
 
 export const createPromptShareCode = (result: PromptEvaluationResult): string => encodeSharePayload(toPromptShareSummary(result));
 
-export const createTarotShareCode = (seed: number, spread: 1 | 3, category: TarotCategory): string => encodeSharePayload({ v: 1, k: 'tarot', seed: seed >>> 0, spread, category });
+export const createTarotShareCode = (seed: number, spread: 1 | 3, category: TarotCategory, cardIds?: string[]): string => encodeSharePayload({ v: 1, k: 'tarot', seed: seed >>> 0, spread, category, ...(cardIds ? { cardIds } : {}) });
 
 export const createSajuShareCode = (result: SajuResult): string => encodeSharePayload({ v: 1, k: 'saju', elements: result.elements, yinYang: result.yinYang, theme: result.interpretations.reflection });
 

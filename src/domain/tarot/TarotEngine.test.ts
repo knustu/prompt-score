@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TAROT_CARDS } from './TarotCardData';
-import { drawTarot, drawTarotCompatibility } from './TarotEngine';
+import { drawTarot, drawTarotCompatibility, drawTarotCompatibilityFromCards, drawTarotFromCards } from './TarotEngine';
 
 describe('TarotEngine', () => {
   it('contains a standard 78-card deck with structured meanings', () => {
@@ -31,5 +31,14 @@ describe('TarotEngine', () => {
     expect(reading.cards.map((item) => item.position)).toEqual(['나의 에너지', '상대의 에너지', '관계의 흐름']);
     expect(reading.categoryLabel).toBe('두 사람 궁합');
     expect(new Set(reading.cards.map((item) => item.card.id)).size).toBe(3);
+  });
+
+  it('keeps the user-selected cards in the generated reading', () => {
+    const selected = ['major-00', 'wands-06', 'cups-03'];
+    const reading = drawTarotFromCards(123456, selected, 3, 'career');
+    const compatibility = drawTarotCompatibilityFromCards(123456, selected);
+    expect(reading.cards.map((item) => item.card.id)).toEqual(selected);
+    expect(compatibility.cards.map((item) => item.card.id)).toEqual(selected);
+    expect(compatibility.cards.map((item) => item.position)).toEqual(['나의 에너지', '상대의 에너지', '관계의 흐름']);
   });
 });
