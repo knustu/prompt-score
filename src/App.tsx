@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type Dispatch, type FormEvent, type ReactNode, type ReactElement, type SetStateAction, type PointerEvent as HoloPointerEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type Dispatch, type FormEvent, type MouseEvent, type ReactNode, type ReactElement, type SetStateAction, type PointerEvent as HoloPointerEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { CHALLENGES, FREEFORM_CHALLENGE_ID, getChallenge } from './domain/prompt/ChallengeDefinitions';
 import { PROMPT_CATEGORIES } from './domain/prompt/PromptRuleDefinitions';
@@ -825,12 +825,13 @@ function TarotSpreadTable({ reading, detailUrl }: { reading: TarotReading; detai
 }
 
 const TAROT_DECK_STAGGER_MS = 10;
+const TAROT_DECK_SHUFFLE_MS = 760;
 const TAROT_DECK_ANIMATION_MS = 1260;
 const TAROT_DECK_COLLAPSE_MS = 840;
 
 const prefersReducedMotion = (): boolean => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-type TarotDeckPhase = 'stacked' | 'spreading' | 'ready' | 'collapsing' | 'complete';
+type TarotDeckPhase = 'stacked' | 'shuffling' | 'spreading' | 'ready' | 'collapsing' | 'complete';
 
 function TarotDeckGallery({ selectionLimit, selectedCardIds, onSelectionChange, onConfirm, onStartSelection }: { selectionLimit: 1 | 3; selectedCardIds: string[]; onSelectionChange: Dispatch<SetStateAction<string[]>>; onConfirm: () => void; onStartSelection: () => void }): ReactElement {
   const [phase, setPhase] = useState<TarotDeckPhase>('stacked');
@@ -842,6 +843,10 @@ function TarotDeckGallery({ selectionLimit, selectedCardIds, onSelectionChange, 
   const canConfirm = canConfirmTarotSelection(selectedCardIds, selectionLimit);
 
   useEffect(() => {
+    if (phase === 'shuffling') {
+      const timer = window.setTimeout(() => setPhase('spreading'), reducedMotion ? 0 : TAROT_DECK_SHUFFLE_MS);
+      return () => window.clearTimeout(timer);
+    }
     if (phase !== 'spreading') return undefined;
     const animationDuration = typeof window !== 'undefined' && window.innerWidth <= 720 ? 600 : TAROT_DECK_ANIMATION_MS;
     const timer = window.setTimeout(() => {
@@ -849,7 +854,7 @@ function TarotDeckGallery({ selectionLimit, selectedCardIds, onSelectionChange, 
       setSelectionNotice('카드가 펼쳐졌어요. 마음이 가는 카드를 선택하세요.');
     }, animationDuration + (TAROT_CARD_COUNT - 1) * TAROT_DECK_STAGGER_MS + 80);
     return () => window.clearTimeout(timer);
-  }, [animationKey, phase]);
+  }, [animationKey, phase, reducedMotion]);
 
   useEffect(() => () => {
     if (collapseTimer.current !== undefined) window.clearTimeout(collapseTimer.current);
@@ -867,13 +872,13 @@ function TarotDeckGallery({ selectionLimit, selectedCardIds, onSelectionChange, 
     onStartSelection();
     onSelectionChange([]);
     setAnimationKey((key) => key + 1);
-    setPhase(reducedMotion ? 'ready' : 'spreading');
+    setPhase(reducedMotion ? 'ready' : 'shuffling');
     setSelectionNotice(reducedMotion ? '카드가 준비됐어요. 마음이 가는 카드를 선택하세요.' : '카드를 섞고 있어요…');
   };
 
   const toggleCard = (cardId: string): void => {
     if (phase !== 'ready') {
-      setSelectionNotice(phase === 'stacked' || phase === 'complete' ? '먼저 카드 셔플 및 선택을 눌러주세요.' : '카드를 펼치는 중이에요. 잠시만 기다려주세요.');
+      setSelectionNotice(phase === 'stacked' || phase === 'complete' ? '먼저 카드 셔플 및 선택을 눌러주세요.' : phase === 'shuffling' ? '덱을 섞고 있어요. 잠시만 기다려주세요.' : '카드를 펼치는 중이에요. 잠시만 기다려주세요.');
       return;
     }
     if (selectedCardIds.includes(cardId)) {
@@ -909,6 +914,21 @@ function TarotDeckGallery({ selectionLimit, selectedCardIds, onSelectionChange, 
     setSelectionNotice('선택한 카드를 확정할지 확인해주세요.');
   };
 
+  const handleDeckClick = (event: MouseEvent<HTMLDivElement>): void => {
+    if (phase !== 'ready') return;
+    const target = event.target instanceof HTMLElement ? event.target.closest<HTMLButtonElement>('.tarot-deck-tile') : null;
+    const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('.tarot-deck-tile:not(:disabled)'));
+    const nearest = event.detail === 0 && target ? target : buttons.reduce<HTMLButtonElement | undefined>((closest, button) => {
+      if (!closest) return button;
+      const rect = button.getBoundingClientRect();
+      const closestRect = closest.getBoundingClientRect();
+      const distance = (event.clientX - (rect.left + rect.width / 2)) ** 2 + (event.clientY - (rect.top + rect.height / 2)) ** 2;
+      const closestDistance = (event.clientX - (closestRect.left + closestRect.width / 2)) ** 2 + (event.clientY - (closestRect.top + closestRect.height / 2)) ** 2;
+      return distance < closestDistance ? button : closest;
+    }, undefined);
+    if (nearest?.dataset.cardId) toggleCard(nearest.dataset.cardId);
+  };
+
   useEffect(() => {
     if (!confirmOpen) return undefined;
     const closeOnEscape = (event: KeyboardEvent): void => {
@@ -937,33 +957,50 @@ function TarotDeckGallery({ selectionLimit, selectedCardIds, onSelectionChange, 
   return <SectionCard className="tarot-deck-gallery">
     <div className="section-title-row"><div><span className="card-kicker">AI DECK INDEX · 78 NODES</span><h2>78장의 카드가 펼쳐집니다</h2></div><span className="small-note">{TAROT_CARD_COUNT} / {TAROT_CARD_COUNT} loaded</span></div>
     <p className="tarot-deck-intro">카드 뒷면만 보이는 덱에서 마음이 가는 카드를 골라보세요. 개인 리딩은 {selectionLimit}장, 두 사람 궁합은 3장을 선택합니다.</p>
-    <div className="tarot-deck-launch"><div><strong>{phase === 'stacked' ? '리본 스프레드를 시작하세요' : phase === 'complete' ? '다음 리딩을 준비하세요' : '카드의 흐름을 따라가세요'}</strong><span>{phase === 'stacked' || phase === 'complete' ? '셔플하면 78장이 반원으로 펼쳐집니다.' : '선택이 끝나면 카드가 접히며 앞면이 공개됩니다.'}</span></div><Button onClick={startShuffle} disabled={phase === 'spreading' || phase === 'collapsing'}>{phase === 'spreading' ? '카드를 펼치는 중…' : launchLabel} <span>✧</span></Button></div>
+    <div className="tarot-deck-launch"><div><strong>{phase === 'stacked' ? '리본 스프레드를 시작하세요' : phase === 'complete' ? '다음 리딩을 준비하세요' : '카드의 흐름을 따라가세요'}</strong><span>{phase === 'stacked' || phase === 'complete' ? '셔플하면 78장이 반원으로 펼쳐집니다.' : '선택이 끝나면 카드가 접히며 앞면이 공개됩니다.'}</span></div><Button onClick={startShuffle} disabled={phase === 'shuffling' || phase === 'spreading' || phase === 'collapsing'}>{phase === 'shuffling' ? '카드를 섞는 중…' : phase === 'spreading' ? '카드를 펼치는 중…' : launchLabel} <span>✧</span></Button></div>
     <div className="tarot-deck-selection-head"><strong>{selectedCount} / {selectionLimit}장 선택</strong><span>{phase === 'complete' ? '리딩 완료' : selectionComplete ? '선택 완료' : `${selectionLimit}장을 골라주세요`}</span></div>
-    <div className={`tarot-deck-stage is-${phase}`} aria-busy={phase === 'spreading' || phase === 'collapsing'}>
-      <div className="tarot-deck-stack" aria-hidden="true"><span /><span /><span /><strong>✦</strong></div>
-      <div key={`${animationKey}-${selectionLimit}`} className="tarot-deck-grid" aria-label={`선택 가능한 타로 카드 ${TAROT_CARD_COUNT}장`}>
-        {TAROT_CARDS.map((card, index) => <TarotDeckTile key={card.id} card={card} index={index} selected={phase === 'ready' && selectedCardIds.includes(card.id)} disabled={phase !== 'ready'} onToggle={toggleCard} />)}
+    <div className={`tarot-deck-stage is-${phase}`} aria-busy={phase === 'shuffling' || phase === 'spreading' || phase === 'collapsing'}>
+      <div key={`${animationKey}-${selectionLimit}`} className="tarot-deck-grid" aria-label={`선택 가능한 타로 카드 ${TAROT_CARD_COUNT}장`} onClick={handleDeckClick}>
+        {TAROT_CARDS.map((card, index) => <TarotDeckTile key={card.id} card={card} index={index} selected={phase === 'ready' && selectedCardIds.includes(card.id)} disabled={phase !== 'ready'} />)}
       </div>
-      {phase === 'stacked' && <div className="tarot-deck-overlay" aria-hidden="true"><span>✦</span><strong>셔플로 카드 열기</strong><small>78 CARDS · FACE DOWN</small></div>}
     </div>
     <div className="tarot-deck-selection-status" role="status" aria-live="polite"><span className="tarot-deck-ready-indicator" aria-hidden="true" />{selectionNotice}</div>
-    <div className="tarot-deck-selection-actions"><Button secondary onClick={resetDeck} disabled={phase === 'spreading' || phase === 'collapsing'}>↺ 다시 섞기</Button><Button onClick={requestConfirmation} disabled={phase !== 'ready' || !canConfirm}>선택 확정하기</Button></div>
+    <div className="tarot-deck-selection-actions"><Button secondary onClick={resetDeck} disabled={phase === 'shuffling' || phase === 'spreading' || phase === 'collapsing'}>↺ 다시 섞기</Button><Button onClick={requestConfirmation} disabled={phase !== 'ready' || !canConfirm}>선택 확정하기</Button></div>
     {confirmOpen && <div className="tarot-confirm-backdrop" role="presentation" onMouseDown={() => setConfirmOpen(false)}><div className="tarot-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="tarot-confirm-title" onMouseDown={(event) => event.stopPropagation()}><span className="guide-mini-label">TAROT CONFIRM</span><h3 id="tarot-confirm-title">선택한 카드를 공개할까요?</h3><p>{selectionLimit}장의 선택을 확정하면 카드 덱이 접히고, 선택한 카드의 앞면과 리딩이 이어집니다.</p><div className="tarot-confirm-actions"><Button secondary onClick={() => setConfirmOpen(false)}>아니오, 다시 고르기</Button><Button onClick={confirmSelection}>확정하고 공개하기 <span>→</span></Button></div></div></div>}
   </SectionCard>;
 }
 
-function TarotDeckTile({ card, index, selected, disabled, onToggle }: { card: TarotCard; index: number; selected: boolean; disabled: boolean; onToggle: (cardId: string) => void }): ReactElement {
+function TarotDeckTile({ card, index, selected, disabled }: { card: TarotCard; index: number; selected: boolean; disabled: boolean }): ReactElement {
   const cardIndex = tarotCardIndex(card);
   const normalizedPosition = index / (TAROT_CARD_COUNT - 1) - .5;
+  const stackX = ((index % 7) - 3) * .7;
+  const stackY = ((index % 5) - 2) * .55;
+  const stackRotate = ((index % 9) - 4) * .45;
+  const shuffleAX = ((index % 5) - 2) * 7;
+  const shuffleAY = ((index % 7) - 3) * 3;
+  const shuffleARotate = ((index % 9) - 4) * 2.4;
+  const shuffleBX = ((index % 7) - 3) * 10;
+  const shuffleBY = ((index % 5) - 2) * 5;
+  const shuffleBRotate = ((index % 11) - 5) * 3;
   const style = {
     ...tarotCardStyle(cardIndex),
     '--deck-delay': `${index * TAROT_DECK_STAGGER_MS}ms`,
+    '--shuffle-delay': `${(index % 9) * 14}ms`,
+    '--stack-x': `${stackX}px`,
+    '--stack-y': `${stackY}px`,
+    '--stack-rotate': `${stackRotate}deg`,
+    '--shuffle-a-x': `${shuffleAX}px`,
+    '--shuffle-a-y': `${shuffleAY}px`,
+    '--shuffle-a-rotate': `${shuffleARotate}deg`,
+    '--shuffle-b-x': `${shuffleBX}px`,
+    '--shuffle-b-y': `${shuffleBY}px`,
+    '--shuffle-b-rotate': `${shuffleBRotate}deg`,
     '--ribbon-x': `${normalizedPosition * 49}%`,
     '--ribbon-y': `${Math.pow(Math.abs(normalizedPosition), 1.7) * 42 - 22}%`,
     '--ribbon-rotate': `${normalizedPosition * 46}deg`,
   } as CSSProperties;
-  return <button type="button" className={`tarot-deck-tile tarot-deck-${card.arcana.toLowerCase()}${selected ? ' selected' : ''}`} style={style} aria-label={`타로 카드 ${cardIndex + 1}번 카드 뒷면${selected ? ', 선택됨' : ''}`} aria-pressed={selected} disabled={disabled} onClick={() => onToggle(card.id)}>
-    <span className="tarot-card-back" aria-hidden="true"><i /><i /><i /><strong>✦</strong><small>NEURAL ARCANA</small><em>{String(cardIndex + 1).padStart(2, '0')}</em></span>
+  return <button type="button" data-card-id={card.id} className={`tarot-deck-tile tarot-deck-${card.arcana.toLowerCase()}${selected ? ' selected' : ''}`} style={style} aria-label={`타로 카드 ${cardIndex + 1}번 카드 뒷면${selected ? ', 선택됨' : ''}`} aria-pressed={selected} disabled={disabled}>
+    <span className="tarot-card-back" aria-hidden="true" />
     <span className="tarot-deck-select-state">{selected ? '선택됨' : disabled ? '준비 중' : '카드 선택'}</span>
   </button>;
 }

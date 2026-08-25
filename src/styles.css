@@ -1647,6 +1647,123 @@ label, .saju-form label, .tarot-controls label { color: #b7c5c7 !important; }
   .tarot-page .tarot-portal-hero { min-height: 240px; }
 }
 
+/* Tarot selection motion: 78 face-down backs shuffle as one physical deck, then fan out. */
+@keyframes tarot-card-stack-shuffle {
+  0%, 100% { opacity: 1; transform: translate3d(calc(-50% + var(--stack-x)), calc(-50% + var(--stack-y)), 0) rotate(var(--stack-rotate)) scale(.72); }
+  24% { transform: translate3d(calc(-50% + var(--shuffle-a-x)), calc(-50% + var(--shuffle-a-y)), 0) rotate(var(--shuffle-a-rotate)) scale(.77); }
+  52% { transform: translate3d(calc(-50% + var(--shuffle-b-x)), calc(-50% + var(--shuffle-b-y)), 0) rotate(var(--shuffle-b-rotate)) scale(.74); }
+  78% { transform: translate3d(calc(-50% - var(--shuffle-a-x)), calc(-50% - var(--shuffle-a-y)), 0) rotate(var(--shuffle-b-rotate)) scale(.78); }
+}
+
+@keyframes tarot-mobile-collapse-stack {
+  from { opacity: 1; transform: translate3d(-50%, -50%, 0) rotate(var(--ribbon-rotate)) scale(1); }
+  to { opacity: 0; transform: translate3d(calc(-50% + 30vw), -50%, 0) rotate(0deg) scale(.42); }
+}
+
+@keyframes tarot-card-flip-reveal {
+  0% { opacity: 0; transform: perspective(1000px) rotateY(180deg) translateY(18px) scale(.9); }
+  48% { opacity: 1; transform: perspective(1000px) rotateY(88deg) translateY(-3px) scale(1.03); }
+  100% { opacity: 1; transform: perspective(1000px) rotateY(0deg) translateY(0) scale(1); }
+}
+
+@keyframes tarot-reading-panel-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.tarot-page .tarot-deck-select-state { display: none !important; }
+.tarot-page .tarot-card-back {
+  inset: 4px;
+  border-color: rgba(242, 211, 139, .5);
+  background: #0b1b27;
+  box-shadow: inset 0 0 0 1px rgba(143, 180, 176, .1), inset 0 0 24px rgba(143, 180, 176, .08);
+}
+.tarot-page .tarot-card-back::before { inset: 11%; border-radius: 3px; transform: none; }
+.tarot-page .tarot-card-back::after { display: none; }
+
+.tarot-page .tarot-deck-stage.is-stacked .tarot-deck-grid,
+.tarot-page .tarot-deck-stage.is-shuffling .tarot-deck-grid { display: block !important; visibility: visible !important; }
+.tarot-page .tarot-deck-stage.is-stacked .tarot-deck-tile,
+.tarot-page .tarot-deck-stage.is-shuffling .tarot-deck-tile {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: clamp(48px, 5.2vw, 64px);
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: none;
+}
+.tarot-page .tarot-deck-stage.is-stacked .tarot-deck-tile {
+  transform: translate3d(calc(-50% + var(--stack-x)), calc(-50% + var(--stack-y)), 0) rotate(var(--stack-rotate)) scale(.72);
+  animation: none;
+}
+.tarot-page .tarot-deck-stage.is-shuffling .tarot-deck-tile {
+  animation: tarot-card-stack-shuffle 760ms cubic-bezier(.16, 1, .3, 1) both;
+  animation-delay: var(--shuffle-delay);
+  will-change: transform, opacity;
+}
+.tarot-page .tarot-deck-stage.is-shuffling .tarot-deck-stack { opacity: 0; }
+.tarot-page .tarot-deck-stage.is-spreading .tarot-deck-tile { pointer-events: none; }
+.tarot-page .tarot-deck-stage.is-ready .tarot-deck-grid { cursor: pointer; }
+.tarot-page .tarot-deck-stage.is-ready .tarot-deck-tile { pointer-events: none; }
+
+.tarot-page .tarot-result.is-fresh-reading .tarot-card-wrap {
+  opacity: 1;
+  transform: none;
+  animation: none !important;
+}
+.tarot-page .tarot-result.is-fresh-reading .tarot-card {
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  animation: tarot-card-flip-reveal 780ms cubic-bezier(.16, 1, .3, 1) both;
+  animation-delay: var(--reveal-delay);
+  will-change: transform, opacity;
+}
+.tarot-page .tarot-result.is-fresh-reading .tarot-reading {
+  animation: tarot-reading-panel-in 360ms cubic-bezier(.16, 1, .3, 1) both;
+  animation-delay: calc(var(--reveal-delay) + 620ms);
+}
+.tarot-page .tarot-result.is-fresh-reading .tarot-summary {
+  animation: tarot-reading-panel-in 420ms cubic-bezier(.16, 1, .3, 1) 900ms both;
+}
+
+@media (max-width: 720px) {
+  .tarot-page .tarot-deck-stage.is-stacked .tarot-deck-grid,
+  .tarot-page .tarot-deck-stage.is-shuffling .tarot-deck-grid {
+    position: absolute;
+    inset: 0;
+    padding: 0 !important;
+    perspective: none;
+  }
+  .tarot-page .tarot-deck-stage.is-stacked .tarot-deck-tile,
+  .tarot-page .tarot-deck-stage.is-shuffling .tarot-deck-tile {
+    width: 72px;
+  }
+  .tarot-page .tarot-deck-stage.is-collapsing .tarot-deck-grid {
+    position: absolute;
+    inset: 0;
+    display: block;
+    padding: 0 !important;
+  }
+  .tarot-page .tarot-deck-stage.is-collapsing .tarot-deck-tile {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 72px;
+    animation: tarot-mobile-collapse-stack 720ms cubic-bezier(.7, 0, .84, .22) both;
+    will-change: transform, opacity;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tarot-page .tarot-deck-stage.is-stacked .tarot-deck-tile,
+  .tarot-page .tarot-deck-stage.is-shuffling .tarot-deck-tile { animation: none !important; }
+  .tarot-page .tarot-result.is-fresh-reading .tarot-card,
+  .tarot-page .tarot-result.is-fresh-reading .tarot-reading,
+  .tarot-page .tarot-result.is-fresh-reading .tarot-summary { animation: none !important; opacity: 1; transform: none; }
+  .tarot-page .tarot-result.is-fresh-reading .tarot-card { backface-visibility: visible; }
+}
+
 /* Tarot selection: a back-only deck that opens from a stack into a curved spread. */
 @keyframes tarot-deck-spread {
   from { opacity: 0; transform: translateY(28px) scale(.7) rotate(0deg); }
@@ -1828,3 +1945,7 @@ label, .saju-form label, .tarot-controls label { color: #b7c5c7 !important; }
   .tarot-page .tarot-deck-stage.is-collapsing .tarot-deck-tile, .tarot-page .tarot-deck-stage.is-complete .tarot-deck-tile { opacity: 0; visibility: hidden; }
   .tarot-page .tarot-deck-stage.is-spreading .tarot-deck-stack { animation: none; opacity: 0; }
 }
+
+/* Keep face-down selection cards free of generated symbol overlays. */
+.tarot-page .tarot-card-back::before,
+.tarot-page .tarot-card-back::after { display: none; }
