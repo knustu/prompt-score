@@ -595,12 +595,7 @@ function SajuPage({ navigate, notify }: { navigate: Navigate; notify: Notify }):
           <p>사주의 원리를 현대적인 화면으로 정리합니다. 오행의 균형과 시기의 흐름을 차분히 살펴보세요.</p>
           <div className="saju-hero-tags"><span>음양오행</span><span>사주팔자</span><span>대운·세운</span></div>
         </div>
-        <div className="saju-hero-console" aria-hidden="true">
-          <div className="console-moon">☾</div>
-          <div className="console-orbit orbit-one" /><div className="console-orbit orbit-two" />
-          <div className="console-stat"><small>FOUR PILLARS</small><b>年 月 日 時</b></div>
-          <div className="console-stat console-stat-bottom"><small>FIVE ELEMENTS</small><b>木 火 土 金 水</b></div>
-        </div>
+        <img className="saju-hero-image" src="/images/saju-hanok-courtyard-v2.png" alt="달빛이 비치는 한옥 마당" />
       </section>
       <PageIntro title="사주를 구조적으로 읽어볼까요?" description="출생 정보와 원하는 주제를 바탕으로 오행의 흐름, 시기, 해석을 차분히 살펴봅니다."><div className="privacy-pill warm"><span>☼</span> 입력은 이 브라우저에만 저장됩니다</div></PageIntro>
       <GuideCharacter kind="saju" phase={result ? (showMore ? 'more' : 'result') : 'input'} onAction={result && !showMore ? () => setShowMore(true) : undefined} onDetail={(target) => navigate(target.detail)} />
@@ -649,7 +644,7 @@ function SajuResult({ result, share, onCopy, onCard, tone, onFeedback, showMore,
       <div className="section-title-row"><div><span className="card-kicker">YOUR SAJU SNAPSHOT</span><h2>오행의 흐름</h2></div>{share && <button className="icon-action" onClick={onCopy}>↗</button>}</div>
       <p className="muted">{result.inputSummary}</p>
       <div className="saju-element-dashboard">
-        <ElementConstellation elements={result.elements} maxElement={maxElement} />
+        <ElementConstellation />
         <div className="element-bars">{ELEMENT_ORDER.map((element) => <div className="element-row" key={element}><span style={{ color: ELEMENT_COLORS[element] }}>{ELEMENT_LABELS[element]}</span><div className="bar-track"><span style={{ width: `${(result.elements[element] / maxElement) * 100}%`, background: ELEMENT_COLORS[element] }} /></div><b>{result.elements[element]}</b></div>)}</div>
       </div>
       <div className="yin-yang"><span>음 {result.yinYang.yin}</span><div><i style={{ width: `${(result.yinYang.yin / Math.max(result.yinYang.yin + result.yinYang.yang, 1)) * 100}%` }} /><b style={{ width: `${(result.yinYang.yang / Math.max(result.yinYang.yin + result.yinYang.yang, 1)) * 100}%` }} /></div><span>양 {result.yinYang.yang}</span></div>
@@ -733,17 +728,9 @@ function SajuFeedback({ onFeedback }: { onFeedback: Notify }): ReactElement {
   return <SectionCard className="saju-feedback"><div className="card-kicker">READING FEEDBACK</div><h2>이 설명이 지금의 나와 맞나요?</h2><p className="muted">선택한 피드백은 현재 브라우저에서만 안내 문구에 반영됩니다.</p><div className="feedback-choices">{choices.map((choice) => <button type="button" className={selected === choice ? 'feedback-choice selected' : 'feedback-choice'} key={choice} onClick={() => { setSelected(choice); onFeedback(`“${choice}” 피드백을 기록했습니다. 현재 세션에만 반영됩니다.`); }}>{choice}</button>)}</div></SectionCard>;
 }
 
-function ElementConstellation({ elements, maxElement }: { elements: SajuResult['elements']; maxElement: number }): ReactElement {
+function ElementConstellation(): ReactElement {
   return <div className="element-constellation" aria-label="오행 분포 시각화">
-    <div className="constellation-grid" />
-    <div className="constellation-core"><span>五</span><small>오행 균형</small></div>
-    {ELEMENT_ORDER.map((element, index) => {
-      const level = Math.max(elements[element] / maxElement, .18);
-      return <div className="constellation-node" key={element} style={{ '--node-angle': `${index * 72 - 90}deg`, '--node-level': `${.5 + level * .48}` } as CSSProperties}>
-        <i style={{ background: ELEMENT_COLORS[element], boxShadow: `0 0 ${8 + level * 16}px ${ELEMENT_COLORS[element]}` }} />
-        <span>{ELEMENT_LABELS[element]}</span><b>{elements[element]}</b>
-      </div>;
-    })}
+    <img className="element-visual-image" src="/images/saju-five-elements-v2.png" alt="목·화·토·금·수를 상징하는 오행 이미지" />
   </div>;
 }
 
@@ -775,7 +762,7 @@ const tarotReadingFromPayload = (payload: TarotSharePayload): TarotReading => pa
 function TarotPortalHero({ mode }: { mode: 'single' | 'compatibility' }): ReactElement {
   return <section className="tarot-portal-hero" aria-label="AI 타로 아르카나 안내">
     <div><span className="tarot-hero-kicker">NEURAL ARCANA · 78 NODES</span><h2>별과 데이터 사이,<br /><em>한 장의 신호</em></h2><p>{mode === 'compatibility' ? '두 사람의 에너지가 어떤 카드 프로토콜로 만나는지 살펴봅니다.' : '전통 상징을 AI 시스템의 언어로 각색해 오늘의 행동으로 번역해보세요.'}</p></div>
-    <div className="tarot-portal" aria-hidden="true"><span>✦</span><i /><i /><b>MAJOR<br />ARCANA</b><small>01 · 78</small></div>
+    <img className="tarot-hero-image" src="/images/tarot-mystic-room-v2.png" alt="달빛과 촛불이 놓인 타로 리딩 테이블" />
   </section>;
 }
 

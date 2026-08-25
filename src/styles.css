@@ -1526,3 +1526,91 @@ label, .saju-form label, .tarot-controls label { color: #b7c5c7 !important; }
   .tarot-page .tarot-deck-selection-head, .tarot-page .tarot-deck-selection-actions { align-items: stretch; flex-direction: column; }
   .tarot-page .tarot-deck-selection-actions .button { width: 100%; }
 }
+
+/* Use generated artwork for Saju/Tarot atmosphere; remove code-drawn overlays. */
+.saju-page .saju-moon-hero {
+  grid-template-columns: minmax(0, .78fr) minmax(300px, 1.22fr);
+  min-height: 330px;
+  background: #0b1622 !important;
+  background-image: none !important;
+}
+.saju-page .saju-moon-hero::before,
+.saju-page .saju-moon-hero::after,
+.saju-page .saju-hero-console,
+.saju-page .saju-hero-console::before,
+.saju-page .saju-hero-console::after,
+.saju-page .console-moon,
+.saju-page .console-orbit,
+.saju-page .console-stat { display: none !important; }
+.saju-page .saju-hero-image {
+  display: block;
+  align-self: stretch;
+  width: 100%;
+  min-height: 300px;
+  object-fit: cover;
+  object-position: 72% center;
+  border: 1px solid #8a6d43;
+  border-radius: 5px;
+}
+.saju-page .element-constellation {
+  min-height: 0;
+  border: 1px solid #675538 !important;
+  border-radius: 5px !important;
+  background: #0b1622 !important;
+}
+.saju-page .element-visual-image {
+  display: block;
+  width: 100%;
+  min-height: 202px;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+.saju-page .constellation-grid,
+.saju-page .constellation-core,
+.saju-page .constellation-node { display: none !important; }
+.saju-detail-page::before,
+.saju-detail-page::after { display: none !important; }
+
+.tarot-page .tarot-portal-hero {
+  grid-template-columns: minmax(0, .78fr) minmax(300px, 1.22fr);
+  min-height: 300px;
+  background: #0b111d !important;
+  background-image: none !important;
+}
+.tarot-page .tarot-portal-hero::before,
+.tarot-page .tarot-portal-hero::after,
+.tarot-page .tarot-portal,
+.tarot-page .tarot-portal::before,
+.tarot-page .tarot-portal::after,
+.tarot-page .tarot-result:has(.tarot-cards.count-3)::before,
+.tarot-page .tarot-result:has(.tarot-cards.count-3)::after,
+.tarot-page .tarot-card-hud,
+.tarot-page .tarot-corner,
+.tarot-page .tarot-symbol,
+.tarot-page .tarot-deck-hud,
+.tarot-page .tarot-deck-core,
+.tarot-detail-page::before,
+.tarot-detail-page::after { display: none !important; }
+.tarot-page .tarot-hero-image {
+  display: block;
+  align-self: stretch;
+  width: 100%;
+  min-height: 270px;
+  object-fit: cover;
+  object-position: 72% center;
+  border: 1px solid #8a6d43;
+  border-radius: 5px;
+}
+.tarot-page .tarot-result:has(.tarot-cards.count-3) { padding-top: 0 !important; }
+
+@media (max-width: 860px) {
+  .saju-page .saju-moon-hero,
+  .tarot-page .tarot-portal-hero { grid-template-columns: 1fr; min-height: 0; }
+  .saju-page .saju-hero-image,
+  .tarot-page .tarot-hero-image { min-height: 260px; max-height: 360px; }
+}
+
+@media (max-width: 620px) {
+  .saju-page .saju-hero-image,
+  .tarot-page .tarot-hero-image { min-height: 220px; max-height: 280px; }
+}
