@@ -32,6 +32,17 @@ Direct deployment after creating the Pages project and authenticating Wrangler:
 npm run pages:deploy
 ```
 
+### Automatic deployment from GitHub
+
+`.github/workflows/cloudflare-pages.yml` runs `npm test`, `npm run build`, and deploys `dist` to the `prompt-score` Cloudflare Pages project whenever `main` changes.
+
+Add these two repository secrets in GitHub under **Settings → Secrets and variables → Actions**:
+
+- `CLOUDFLARE_ACCOUNT_ID`
+- `CLOUDFLARE_API_TOKEN` — an account token with **Cloudflare Pages → Edit** permission
+
+The workflow is the only automatic deployment path in this repository; it does not use Vercel.
+
 Checks:
 
 ```bash
