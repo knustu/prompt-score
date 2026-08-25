@@ -9,6 +9,29 @@ npm install
 npm run dev
 ```
 
+## Cloudflare Pages
+
+This is a Vite React SPA prepared for Cloudflare Pages.
+
+- Build command: `npm run build`
+- Build output directory: `dist`
+- Root directory: repository root
+- Wrangler configuration: `wrangler.jsonc`
+
+Cloudflare Pages' default SPA fallback replaces the former Vercel rewrite because the build has no top-level `404.html`.
+
+Local Pages preview:
+
+```bash
+npm run pages:dev
+```
+
+Direct deployment after creating the Pages project and authenticating Wrangler:
+
+```bash
+npm run pages:deploy
+```
+
 Checks:
 
 ```bash

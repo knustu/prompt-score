@@ -2,7 +2,7 @@ node_modules/
 dist/
 .vite/
 *.local
-.vercel/
+.wrangler/
 *.tsbuildinfo
 vite.config.js
 vite.config.d.ts
