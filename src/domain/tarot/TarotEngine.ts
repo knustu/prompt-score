@@ -1,4 +1,4 @@
-import type { TarotCategory, TarotDrawnCard, TarotReading } from '../types';
+import type { TarotCard, TarotCategory, TarotDrawnCard, TarotReading } from '../types';
 import { TAROT_CARDS } from './TarotCardData';
 
 export const TAROT_CATEGORY_LABELS: Record<TarotCategory, string> = {
@@ -21,6 +21,15 @@ const seededRandom = (seed: number): (() => number) => {
   };
 };
 
+const shuffleDeck = (random: () => number): TarotCard[] => {
+  const deck = [...TAROT_CARDS];
+  for (let index = deck.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(random() * (index + 1));
+    [deck[index], deck[swapIndex]] = [deck[swapIndex], deck[index]];
+  }
+  return deck;
+};
+
 export const createTarotSeed = (): number => {
   if (typeof crypto !== 'undefined' && 'getRandomValues' in crypto) {
     const values = new Uint32Array(1);
@@ -29,6 +38,8 @@ export const createTarotSeed = (): number => {
   }
   return (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0;
 };
+
+export const shuffleTarotCards = (seed: number): TarotCard[] => shuffleDeck(seededRandom(seed));
 
 const positionLabels = (spread: 1 | 3): string[] => spread === 1 ? ['지금의 흐름'] : ['현재', '장애물 또는 배경', '다음 행동'];
 
@@ -62,11 +73,7 @@ const readingFromCards = (seed: number, cards: TarotDrawnCard['card'][], spread:
 
 export const drawTarot = (seed: number, spread: 1 | 3, category: TarotCategory): TarotReading => {
   const random = seededRandom(seed);
-  const deck = [...TAROT_CARDS];
-  for (let index = deck.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(random() * (index + 1));
-    [deck[index], deck[swapIndex]] = [deck[swapIndex], deck[index]];
-  }
+  const deck = shuffleDeck(random);
   return readingFromCards(seed, deck.slice(0, spread), spread, category, random);
 };
 

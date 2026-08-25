@@ -7,7 +7,7 @@ import { comparePromptSummaries, type PromptComparison } from './domain/comparis
 import { calculateSaju, defaultSajuInput, validateSajuInput } from './domain/saju/SajuEngine';
 import { ELEMENT_GUIDANCE } from './domain/saju/SajuKnowledgeBase';
 import { ELEMENT_COLORS, ELEMENT_LABELS, ELEMENT_ORDER } from './domain/saju/SajuRuleDefinitions';
-import { createTarotSeed, drawTarot, drawTarotFromCards, drawTarotCompatibilityFromCards, TAROT_CATEGORY_LABELS, TAROT_DISCLAIMER } from './domain/tarot/TarotEngine';
+import { createTarotSeed, drawTarot, drawTarotFromCards, drawTarotCompatibilityFromCards, shuffleTarotCards, TAROT_CATEGORY_LABELS, TAROT_DISCLAIMER } from './domain/tarot/TarotEngine';
 import { TAROT_CARD_COUNT, TAROT_CARDS } from './domain/tarot/TarotCardData';
 import { canConfirmTarotSelection, toggleTarotSelection } from './domain/tarot/TarotSelection';
 import { createComparisonCard, createPromptResultCard, createSajuResultCard, createTarotCard, downloadCanvas, shareCanvas } from './domain/card/ResultCardGenerator';
@@ -835,6 +835,7 @@ type TarotDeckPhase = 'stacked' | 'shuffling' | 'spreading' | 'ready' | 'collaps
 
 function TarotDeckGallery({ selectionLimit, selectedCardIds, onSelectionChange, onConfirm, onStartSelection }: { selectionLimit: 1 | 3; selectedCardIds: string[]; onSelectionChange: Dispatch<SetStateAction<string[]>>; onConfirm: () => void; onStartSelection: () => void }): ReactElement {
   const [phase, setPhase] = useState<TarotDeckPhase>('stacked');
+  const [displayCards, setDisplayCards] = useState<TarotCard[]>(TAROT_CARDS);
   const [selectionNotice, setSelectionNotice] = useState('셔플 버튼을 누르면 카드가 리본처럼 펼쳐져요.');
   const [animationKey, setAnimationKey] = useState(0);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -871,6 +872,7 @@ function TarotDeckGallery({ selectionLimit, selectedCardIds, onSelectionChange, 
     setConfirmOpen(false);
     onStartSelection();
     onSelectionChange([]);
+    setDisplayCards(shuffleTarotCards(createTarotSeed()));
     setAnimationKey((key) => key + 1);
     setPhase(reducedMotion ? 'ready' : 'shuffling');
     setSelectionNotice(reducedMotion ? '카드가 준비됐어요. 마음이 가는 카드를 선택하세요.' : '카드를 섞고 있어요…');
@@ -961,7 +963,7 @@ function TarotDeckGallery({ selectionLimit, selectedCardIds, onSelectionChange, 
     <div className="tarot-deck-selection-head"><strong>{selectedCount} / {selectionLimit}장 선택</strong><span>{phase === 'complete' ? '리딩 완료' : selectionComplete ? '선택 완료' : `${selectionLimit}장을 골라주세요`}</span></div>
     <div className={`tarot-deck-stage is-${phase}`} aria-busy={phase === 'shuffling' || phase === 'spreading' || phase === 'collapsing'}>
       <div key={`${animationKey}-${selectionLimit}`} className="tarot-deck-grid" aria-label={`선택 가능한 타로 카드 ${TAROT_CARD_COUNT}장`} onClick={handleDeckClick}>
-        {TAROT_CARDS.map((card, index) => <TarotDeckTile key={card.id} card={card} index={index} selected={phase === 'ready' && selectedCardIds.includes(card.id)} disabled={phase !== 'ready'} />)}
+        {displayCards.map((card, index) => <TarotDeckTile key={card.id} card={card} index={index} selected={phase === 'ready' && selectedCardIds.includes(card.id)} disabled={phase !== 'ready'} />)}
       </div>
     </div>
     <div className="tarot-deck-selection-status" role="status" aria-live="polite"><span className="tarot-deck-ready-indicator" aria-hidden="true" />{selectionNotice}</div>
@@ -984,6 +986,7 @@ function TarotDeckTile({ card, index, selected, disabled }: { card: TarotCard; i
   const shuffleBRotate = ((index % 11) - 5) * 3;
   const style = {
     ...tarotCardStyle(cardIndex),
+    '--card-index': `${index + 1}`,
     '--deck-delay': `${index * TAROT_DECK_STAGGER_MS}ms`,
     '--shuffle-delay': `${(index % 9) * 14}ms`,
     '--stack-x': `${stackX}px`,

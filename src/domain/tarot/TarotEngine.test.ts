@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TAROT_CARDS } from './TarotCardData';
-import { drawTarot, drawTarotCompatibility, drawTarotCompatibilityFromCards, drawTarotFromCards } from './TarotEngine';
+import { drawTarot, drawTarotCompatibility, drawTarotCompatibilityFromCards, drawTarotFromCards, shuffleTarotCards } from './TarotEngine';
 
 describe('TarotEngine', () => {
   it('contains a standard 78-card deck with structured meanings', () => {
@@ -15,6 +15,16 @@ describe('TarotEngine', () => {
     expect(second).toEqual(first);
     expect(first.seed).toBe(123456);
     expect(new Set(first.cards.map((item) => item.card.id)).size).toBe(3);
+  });
+
+  it('shuffles every card into a new display order without duplicates', () => {
+    const first = shuffleTarotCards(123456).map((card) => card.id);
+    const second = shuffleTarotCards(654321).map((card) => card.id);
+    expect(first).toHaveLength(78);
+    expect(new Set(first).size).toBe(78);
+    expect(new Set(second).size).toBe(78);
+    expect(second).not.toEqual(first);
+    expect(first).not.toEqual(TAROT_CARDS.map((card) => card.id));
   });
 
   it('renders reversed-card keywords and reversed advice deterministically', () => {
