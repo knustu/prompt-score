@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type Dispatch, type FormEvent, type ReactNode, type ReactElement, type SetStateAction, type PointerEvent as HoloPointerEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type Dispatch, type FormEvent, type ReactNode, type ReactElement, type SetStateAction, type PointerEvent as HoloPointerEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { CHALLENGES, FREEFORM_CHALLENGE_ID, getChallenge } from './domain/prompt/ChallengeDefinitions';
 import { PROMPT_CATEGORIES } from './domain/prompt/PromptRuleDefinitions';
@@ -7,7 +7,7 @@ import { comparePromptSummaries, type PromptComparison } from './domain/comparis
 import { calculateSaju, defaultSajuInput, validateSajuInput } from './domain/saju/SajuEngine';
 import { ELEMENT_GUIDANCE } from './domain/saju/SajuKnowledgeBase';
 import { ELEMENT_COLORS, ELEMENT_LABELS, ELEMENT_ORDER } from './domain/saju/SajuRuleDefinitions';
-import { createTarotSeed, drawTarot, drawTarotCompatibility, drawTarotFromCards, drawTarotCompatibilityFromCards, TAROT_CATEGORY_LABELS, TAROT_DISCLAIMER } from './domain/tarot/TarotEngine';
+import { createTarotSeed, drawTarot, drawTarotFromCards, drawTarotCompatibilityFromCards, TAROT_CATEGORY_LABELS, TAROT_DISCLAIMER } from './domain/tarot/TarotEngine';
 import { TAROT_CARD_COUNT, TAROT_CARDS } from './domain/tarot/TarotCardData';
 import { canConfirmTarotSelection, toggleTarotSelection } from './domain/tarot/TarotSelection';
 import { createComparisonCard, createPromptResultCard, createSajuResultCard, createTarotCard, downloadCanvas, shareCanvas } from './domain/card/ResultCardGenerator';
@@ -337,7 +337,7 @@ function GuideCharacter({ kind, active = true, onAction, onDetail }: { kind: Gui
     };
   }, [active, hidden, kind]);
 
-  if (!active && kind === 'prompt') return null;
+  if (!active) return null;
   const portal = (content: ReactElement): ReactElement => createPortal(content, document.body);
   if (hidden) {
     return portal(<div className="guide-reopen"><span>가이드가 꺼져 있어요.</span><button type="button" onClick={() => { localStorage.removeItem(GUIDE_STORAGE_KEY); setHidden(false); setEntered(false); }}>가이드 다시 보기</button></div>);
@@ -776,27 +776,25 @@ function TarotPage({ navigate, notify }: { navigate: Navigate; notify: Notify })
   const [reading, setReading] = useState<TarotReading | undefined>(initialReading);
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>(() => initialReading?.cards.map(({ card }) => card.id) ?? []);
   const [usesSelectedCards, setUsesSelectedCards] = useState(Boolean(payload?.k === 'tarot' && payload.cardIds));
+  const [isFreshReading, setIsFreshReading] = useState(false);
   const [status, setStatus] = useState('');
   const requiredSelectionCount: 1 | 3 = mode === 'compatibility' ? 3 : spread;
   const selectionLimit = requiredSelectionCount;
-  const changeMode = (nextMode: 'single' | 'compatibility'): void => { setMode(nextMode); setReading(nextMode === 'single' ? initialReading : undefined); setSelectedCardIds([]); setStatus(''); };
-  const changeSpread = (nextSpread: 1 | 3): void => { setSpread(nextSpread); setSelectedCardIds([]); setStatus(''); };
-  const draw = (): void => {
-    const next = mode === 'compatibility' ? drawTarotCompatibility(createTarotSeed()) : drawTarot(createTarotSeed(), spread, category);
-    setReading(next);
-    setSelectedCardIds(next.cards.map(({ card }) => card.id));
+  const beginTarotSelection = (): void => {
+    setReading(undefined);
+    setSelectedCardIds([]);
     setUsesSelectedCards(false);
-    writeStored(STORAGE_KEYS.tarotCurrent, next);
-    if (mode === 'single') writeStored(STORAGE_KEYS.tarot, next);
-    setStatus(mode === 'compatibility' ? '두 사람 궁합 카드를 펼쳤습니다.' : '새 카드를 뽑았습니다.');
-    notify(mode === 'compatibility' ? '나·상대·관계의 3장 궁합 리딩을 만들었습니다.' : '시드를 저장해 같은 결과를 다시 볼 수 있어요.');
-    navigate('/tarot');
+    setIsFreshReading(false);
+    setStatus('');
   };
+  const changeMode = (nextMode: 'single' | 'compatibility'): void => { setMode(nextMode); setReading(undefined); setSelectedCardIds([]); setIsFreshReading(false); setStatus(''); };
+  const changeSpread = (nextSpread: 1 | 3): void => { setSpread(nextSpread); setReading(undefined); setSelectedCardIds([]); setIsFreshReading(false); setStatus(''); };
   const drawSelected = (): void => {
     if (!canConfirmTarotSelection(selectedCardIds, requiredSelectionCount)) return;
     const next = mode === 'compatibility' ? drawTarotCompatibilityFromCards(createTarotSeed(), selectedCardIds) : drawTarotFromCards(createTarotSeed(), selectedCardIds, spread, category);
     setReading(next);
     setUsesSelectedCards(true);
+    setIsFreshReading(true);
     writeStored(STORAGE_KEYS.tarotCurrent, next);
     if (mode === 'single') writeStored(STORAGE_KEYS.tarot, next);
     setStatus(mode === 'compatibility' ? '선택한 3장으로 궁합 리딩을 펼쳤습니다.' : `선택한 ${requiredSelectionCount}장으로 리딩을 만들었습니다.`);
@@ -810,54 +808,70 @@ function TarotPage({ navigate, notify }: { navigate: Navigate; notify: Notify })
   const card = async (): Promise<void> => { if (!reading) return; const outcome = await shareCanvas(createTarotCard(reading), 'Prompt Score 타로', reading.summary); setStatus(outcome === 'shared' ? '공유 시트를 열었어요.' : 'PNG를 저장했어요.'); };
   const firstName = compatibilityNames.first.trim() || '나';
   const secondName = compatibilityNames.second.trim() || '상대방';
-  return <div className="page-wrap page-content tarot-page"><TarotPortalHero mode={mode} /><PageIntro eyebrow="Tarot · neural arcana" title={mode === 'compatibility' ? '두 사람의 흐름을 카드 프로토콜로 볼까요?' : '오늘의 신호 카드를 한 장 뽑아볼까요?'} description={mode === 'compatibility' ? '78장의 카드에서 3장을 골라 나·상대·관계의 흐름을 살펴봅니다. 결과는 오락과 자기 성찰을 위한 참고용이에요.' : '78장의 카드가 순서대로 펼쳐집니다. 원하는 카드 수만큼 골라 오늘의 흐름을 읽어보세요.'}><div className="privacy-pill mint"><span>✧</span> 결과는 시드로 재현 가능</div></PageIntro><GuideCharacter kind="tarot" onDetail={(target) => navigate(target.detail)} /><div className="tarot-layout"><SectionCard className="tarot-controls"><div className="card-kicker">DRAW SETTINGS</div><h2>리딩을 고르세요</h2><div className="segmented tarot-mode-switch"><button className={mode === 'single' ? 'selected' : ''} onClick={() => changeMode('single')}>개인 리딩</button><button className={mode === 'compatibility' ? 'selected' : ''} onClick={() => changeMode('compatibility')}>두 사람 궁합</button></div>{mode === 'single' ? <><div className="segmented"><button className={spread === 1 ? 'selected' : ''} onClick={() => changeSpread(1)}>한 장</button><button className={spread === 3 ? 'selected' : ''} onClick={() => changeSpread(3)}>세 장</button></div><label>관심 카테고리<select value={category} onChange={(event) => setCategory(event.target.value as TarotCategory)}>{Object.entries(TAROT_CATEGORY_LABELS).map(([key, label]) => <option value={key} key={key}>{label}</option>)}</select></label></> : <><p className="field-note tarot-compatibility-hint">이름은 결과 화면에만 표시되며 저장하거나 공유하지 않습니다.</p><div className="field-row tarot-name-row"><label>나<input value={compatibilityNames.first} onChange={(event) => setCompatibilityNames({ ...compatibilityNames, first: event.target.value })} placeholder="나" /></label><label>상대<input value={compatibilityNames.second} onChange={(event) => setCompatibilityNames({ ...compatibilityNames, second: event.target.value })} placeholder="상대방" /></label></div><div className="tarot-compatibility-note">3장 · 나의 에너지 · 상대의 에너지 · 관계의 흐름</div></>}<Button onClick={draw}>무작위 카드 펼치기 <span>✧</span></Button><div className="tarot-selection-counter" aria-live="polite"><strong>{selectedCardIds.length} / {selectionLimit}</strong>장 선택됨<span>{selectedCardIds.length === selectionLimit ? '선택을 완료하고 아래 버튼을 눌러주세요.' : `${selectionLimit}장을 선택해주세요.`}</span></div><div className="tarot-mini-note">NEURAL ARCANA · 78장 전체 카드 · 규칙 기반 리딩</div></SectionCard><div className="tarot-result">{reading ? <><div className="tarot-result-head"><div><span className="card-kicker">{reading.categoryLabel} READING</span><h2>{mode === 'compatibility' ? `${firstName} · ${secondName} · 관계 흐름` : reading.spread === 1 ? '지금의 한 장' : '현재 · 장애물 · 다음 행동'}</h2></div><div className="result-actions compact">{mode === 'single' && <Button secondary onClick={share}>↗ 링크 복사</Button>}<Button secondary onClick={card}>▣ {mode === 'compatibility' ? '궁합 카드 저장' : '카드 저장'}</Button></div></div><div className={`tarot-cards count-${reading.cards.length}`} data-guide-kind="tarot" data-guide-section="card-spread" data-guide-detail={detailUrl('card-spread')}>{reading.cards.map((item) => <TarotVisual key={`${item.card.id}-${item.position}`} item={item} detailUrl={(cardId) => detailUrl(`card-${cardId}`, cardId)} />)}</div><TarotSpreadTable reading={reading} detailUrl={detailUrl} /><SectionCard className="tarot-summary" guideKind="tarot" guideSection="final-interpretation" guideDetail={detailUrl('final-interpretation')}><span className="eyebrow">오늘의 문장</span><p>{reading.summary}</p><div className="mini-divider" /><p className="muted">{TAROT_DISCLAIMER}</p></SectionCard>{status && <p className="success-text">{status}</p>}</> : <EmptyState title={mode === 'compatibility' ? '두 사람의 카드를 기다리고 있어요' : '카드를 기다리고 있어요'} text={mode === 'compatibility' ? '이름을 적고 궁합 카드를 뽑아보세요.' : '설정을 고른 뒤 카드를 뽑아보세요.'} button="카드 뽑기" onClick={draw} />}</div></div><TarotDeckGallery selectionLimit={selectionLimit} selectedCardIds={selectedCardIds} onSelectionChange={setSelectedCardIds} onConfirm={drawSelected} /></div>;
+  return <div className="page-wrap page-content tarot-page"><TarotPortalHero mode={mode} /><PageIntro eyebrow="Tarot · neural arcana" title={mode === 'compatibility' ? '두 사람의 흐름을 카드 프로토콜로 볼까요?' : '오늘의 신호 카드를 한 장 뽑아볼까요?'} description={mode === 'compatibility' ? '78장의 카드에서 3장을 골라 나·상대·관계의 흐름을 살펴봅니다. 결과는 오락과 자기 성찰을 위한 참고용이에요.' : '카드 셔플 버튼을 누르면 78장의 카드가 리본처럼 펼쳐집니다. 마음이 가는 카드로 오늘의 흐름을 읽어보세요.'}><div className="privacy-pill mint"><span>✧</span> 결과는 시드로 재현 가능</div></PageIntro><div className="tarot-layout"><SectionCard className="tarot-controls"><div className="card-kicker">DRAW SETTINGS</div><h2>리딩을 고르세요</h2><div className="segmented tarot-mode-switch"><button className={mode === 'single' ? 'selected' : ''} onClick={() => changeMode('single')}>개인 리딩</button><button className={mode === 'compatibility' ? 'selected' : ''} onClick={() => changeMode('compatibility')}>두 사람 궁합</button></div>{mode === 'single' ? <><div className="segmented"><button className={spread === 1 ? 'selected' : ''} onClick={() => changeSpread(1)}>한 장</button><button className={spread === 3 ? 'selected' : ''} onClick={() => changeSpread(3)}>세 장</button></div><label>관심 카테고리<select value={category} onChange={(event) => setCategory(event.target.value as TarotCategory)}>{Object.entries(TAROT_CATEGORY_LABELS).map(([key, label]) => <option value={key} key={key}>{label}</option>)}</select></label></> : <><p className="field-note tarot-compatibility-hint">이름은 결과 화면에만 표시되며 저장하거나 공유하지 않습니다.</p><div className="field-row tarot-name-row"><label>나<input value={compatibilityNames.first} onChange={(event) => setCompatibilityNames({ ...compatibilityNames, first: event.target.value })} placeholder="나" /></label><label>상대<input value={compatibilityNames.second} onChange={(event) => setCompatibilityNames({ ...compatibilityNames, second: event.target.value })} placeholder="상대방" /></label></div><div className="tarot-compatibility-note">3장 · 나의 에너지 · 상대의 에너지 · 관계의 흐름</div></>}<p className="tarot-selection-prompt">아래에서 <strong>카드 셔플 및 선택</strong>을 누른 뒤, {selectionLimit}장을 골라주세요.</p><div className="tarot-selection-counter" aria-live="polite"><strong>{selectedCardIds.length} / {selectionLimit}</strong>장 선택됨<span>{selectedCardIds.length === selectionLimit ? '선택한 카드가 리딩으로 이어집니다.' : `${selectionLimit}장을 선택해주세요.`}</span></div><div className="tarot-mini-note">NEURAL ARCANA · 78장 전체 카드 · 규칙 기반 리딩</div></SectionCard><div className={`tarot-result${isFreshReading ? ' is-fresh-reading' : ''}`}>{reading ? <><div className="tarot-result-head"><div><span className="card-kicker">{reading.categoryLabel} READING</span><h2>{mode === 'compatibility' ? `${firstName} · ${secondName} · 관계 흐름` : reading.spread === 1 ? '지금의 한 장' : '현재 · 장애물 · 다음 행동'}</h2></div><div className="result-actions compact">{mode === 'single' && <Button secondary onClick={share}>↗ 링크 복사</Button>}<Button secondary onClick={card}>▣ {mode === 'compatibility' ? '궁합 카드 저장' : '카드 저장'}</Button></div></div>{reading.cards.length === 3 && <div className="tarot-reading-guide" data-guide-kind="tarot" data-guide-section="final-interpretation" data-guide-detail={detailUrl('final-interpretation')}><div><span className="guide-mini-label">TAROT GUIDE</span><strong>세 장의 흐름을 한 번에 읽어볼까요?</strong><p>현재·장애물·다음 행동을 연결해 짧은 문장으로 정리했어요.</p></div><Button secondary onClick={() => navigate(detailUrl('final-interpretation'))}>상세 설명 보기 <span>→</span></Button></div>}<div className={`tarot-cards count-${reading.cards.length}`} data-guide-kind="tarot" data-guide-section="card-spread" data-guide-detail={detailUrl('card-spread')}>{reading.cards.map((item, index) => <TarotVisual key={`${item.card.id}-${item.position}`} item={item} revealIndex={index} detailUrl={(cardId) => detailUrl(`card-${cardId}`, cardId)} />)}</div><TarotSpreadTable reading={reading} detailUrl={detailUrl} /><SectionCard className="tarot-summary" guideKind="tarot" guideSection="final-interpretation" guideDetail={detailUrl('final-interpretation')}><span className="eyebrow">오늘의 문장</span><p>{reading.summary}</p><div className="mini-divider" /><p className="muted">{TAROT_DISCLAIMER}</p></SectionCard>{status && <p className="success-text">{status}</p>}</> : <EmptyState title={mode === 'compatibility' ? '두 사람의 카드를 기다리고 있어요' : '카드를 기다리고 있어요'} text={mode === 'compatibility' ? '이름을 정한 뒤 아래 덱에서 3장을 선택하세요.' : '설정을 고른 뒤 아래 덱에서 카드를 선택하세요.'} />}</div></div><TarotDeckGallery selectionLimit={selectionLimit} selectedCardIds={selectedCardIds} onSelectionChange={setSelectedCardIds} onConfirm={drawSelected} onStartSelection={beginTarotSelection} /></div>;
 }
 
-function TarotVisual({ item, detailUrl }: { item: TarotReading['cards'][number]; detailUrl?: (cardId: string) => string }): ReactElement {
+function TarotVisual({ item, detailUrl, revealIndex = 0 }: { item: TarotReading['cards'][number]; detailUrl?: (cardId: string) => string; revealIndex?: number }): ReactElement {
   const index = tarotCardIndex(item.card);
-  return <article className="tarot-card-wrap" data-guide-kind={detailUrl ? 'tarot' : undefined} data-guide-section={detailUrl ? `card-${item.card.id}` : undefined} data-guide-detail={detailUrl ? detailUrl(item.card.id) : undefined}><div className={`${item.reversed ? 'tarot-card reversed' : 'tarot-card'} tarot-card-${item.card.arcana.toLowerCase()}`} style={tarotCardStyle(index)}><img className="tarot-card-art" src={tarotAssetUrl(item.card.id)} alt="" aria-hidden="true" /><div className="tarot-card-copy"><strong>{item.card.name}</strong><small>{item.reversed ? 'REVERSED · 역방향' : 'UPRIGHT · 정방향'}</small><div className="tarot-ai-tag">{item.card.aiArchetype ?? 'NEURAL ARCHETYPE'}</div><div className="tarot-keywords">{(item.reversed ? item.card.reversedKeywords : item.card.uprightKeywords).map((keyword) => <span key={keyword}>{keyword}</span>)}</div></div></div><div className="tarot-reading"><span className="card-kicker">{item.position}</span><p>{item.interpretation}</p><strong>ADVICE</strong><p>{item.advice}</p><strong>CHECK</strong><p>{item.warning}</p></div></article>;
+  return <article className="tarot-card-wrap" style={{ '--reveal-delay': `${revealIndex * 120}ms` } as CSSProperties} data-guide-kind={detailUrl ? 'tarot' : undefined} data-guide-section={detailUrl ? `card-${item.card.id}` : undefined} data-guide-detail={detailUrl ? detailUrl(item.card.id) : undefined}><div className={`${item.reversed ? 'tarot-card reversed' : 'tarot-card'} tarot-card-${item.card.arcana.toLowerCase()}`} style={tarotCardStyle(index)}><img className="tarot-card-art" src={tarotAssetUrl(item.card.id)} alt="" aria-hidden="true" /><div className="tarot-card-copy"><strong>{item.card.name}</strong><small>{item.reversed ? 'REVERSED · 역방향' : 'UPRIGHT · 정방향'}</small><div className="tarot-ai-tag">{item.card.aiArchetype ?? 'NEURAL ARCHETYPE'}</div><div className="tarot-keywords">{(item.reversed ? item.card.reversedKeywords : item.card.uprightKeywords).map((keyword) => <span key={keyword}>{keyword}</span>)}</div></div></div><div className="tarot-reading"><span className="card-kicker">{item.position}</span><p>{item.interpretation}</p><strong>ADVICE</strong><p>{item.advice}</p><strong>CHECK</strong><p>{item.warning}</p></div></article>;
 }
 
 function TarotSpreadTable({ reading, detailUrl }: { reading: TarotReading; detailUrl?: (section: string, cardId?: string) => string }): ReactElement {
   return <div className="tarot-spread-table" role="table" aria-label="타로 스프레드 표" data-guide-kind={detailUrl ? 'tarot' : undefined} data-guide-section={detailUrl ? 'spread-summary' : undefined} data-guide-detail={detailUrl ? detailUrl('spread-summary') : undefined}><div className="tarot-spread-row spread-head" role="row"><span>위치</span><span>카드</span><span>방향</span><span>키워드</span></div>{reading.cards.map((item) => <div className="tarot-spread-row" role="row" key={`${item.card.id}-${item.position}`}><span>{item.position}</span><strong>{item.card.name}</strong><b>{item.reversed ? '역방향' : '정방향'}</b><em>{(item.reversed ? item.card.reversedKeywords : item.card.uprightKeywords).slice(0, 2).join(' · ')}</em></div>)}</div>;
 }
 
-const TAROT_DECK_STAGGER_MS = 17;
-const TAROT_DECK_ANIMATION_MS = 650;
+const TAROT_DECK_STAGGER_MS = 18;
+const TAROT_DECK_ANIMATION_MS = 1050;
+const TAROT_DECK_COLLAPSE_MS = 720;
+const TAROT_SELECTION_PAUSE_MS = 520;
 
 const prefersReducedMotion = (): boolean => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-function TarotDeckGallery({ selectionLimit, selectedCardIds, onSelectionChange, onConfirm }: { selectionLimit: 1 | 3; selectedCardIds: string[]; onSelectionChange: Dispatch<SetStateAction<string[]>>; onConfirm: () => void }): ReactElement {
-  const [filter, setFilter] = useState<'all' | TarotCard['arcana']>('all');
-  const [selectionNotice, setSelectionNotice] = useState('');
-  const [isSpreadReady, setIsSpreadReady] = useState(prefersReducedMotion);
+type TarotDeckPhase = 'stacked' | 'spreading' | 'ready' | 'collapsing' | 'complete';
+
+function TarotDeckGallery({ selectionLimit, selectedCardIds, onSelectionChange, onConfirm, onStartSelection }: { selectionLimit: 1 | 3; selectedCardIds: string[]; onSelectionChange: Dispatch<SetStateAction<string[]>>; onConfirm: () => void; onStartSelection: () => void }): ReactElement {
+  const [phase, setPhase] = useState<TarotDeckPhase>('stacked');
+  const [selectionNotice, setSelectionNotice] = useState('셔플 버튼을 누르면 카드가 리본처럼 펼쳐져요.');
   const [animationKey, setAnimationKey] = useState(0);
-  const filters: Array<{ key: 'all' | TarotCard['arcana']; label: string }> = [
-    { key: 'all', label: `전체 ${TAROT_CARD_COUNT}` },
-    { key: 'Major', label: '메이저 22' },
-    { key: 'Wands', label: '완드 14' },
-    { key: 'Cups', label: '컵 14' },
-    { key: 'Swords', label: '소드 14' },
-    { key: 'Pentacles', label: '펜타클 14' },
-  ];
-  const cards = filter === 'all' ? TAROT_CARDS : TAROT_CARDS.filter((card) => card.arcana === filter);
+  const autoConfirmTimer = useRef<number | undefined>(undefined);
+  const collapseTimer = useRef<number | undefined>(undefined);
+  const reducedMotion = prefersReducedMotion();
   const canConfirm = canConfirmTarotSelection(selectedCardIds, selectionLimit);
 
   useEffect(() => {
-    const reduced = prefersReducedMotion();
-    setIsSpreadReady(reduced);
-    setSelectionNotice(reduced ? '마음이 가는 카드를 선택하세요.' : '카드를 준비하고 있어요…');
-    if (reduced) return undefined;
+    if (phase !== 'spreading') return undefined;
     const timer = window.setTimeout(() => {
-      setIsSpreadReady(true);
+      setPhase('ready');
       setSelectionNotice('카드가 펼쳐졌어요. 마음이 가는 카드를 선택하세요.');
-    }, TAROT_DECK_ANIMATION_MS + Math.min(cards.length, TAROT_CARD_COUNT) * TAROT_DECK_STAGGER_MS + 80);
+    }, TAROT_DECK_ANIMATION_MS + (TAROT_CARD_COUNT - 1) * TAROT_DECK_STAGGER_MS + 80);
     return () => window.clearTimeout(timer);
-  }, [animationKey, filter, selectionLimit, cards.length]);
+  }, [animationKey, phase]);
+
+  useEffect(() => () => {
+    if (autoConfirmTimer.current !== undefined) window.clearTimeout(autoConfirmTimer.current);
+    if (collapseTimer.current !== undefined) window.clearTimeout(collapseTimer.current);
+  }, []);
+
+  const clearPendingTimers = (): void => {
+    if (autoConfirmTimer.current !== undefined) window.clearTimeout(autoConfirmTimer.current);
+    if (collapseTimer.current !== undefined) window.clearTimeout(collapseTimer.current);
+    autoConfirmTimer.current = undefined;
+    collapseTimer.current = undefined;
+  };
+
+  const startShuffle = (): void => {
+    if (phase === 'spreading' || phase === 'collapsing') return;
+    clearPendingTimers();
+    onStartSelection();
+    onSelectionChange([]);
+    setAnimationKey((key) => key + 1);
+    setPhase(reducedMotion ? 'ready' : 'spreading');
+    setSelectionNotice(reducedMotion ? '카드가 준비됐어요. 마음이 가는 카드를 선택하세요.' : '카드를 섞고 있어요…');
+  };
 
   const toggleCard = (cardId: string): void => {
-    if (!isSpreadReady) {
-      setSelectionNotice('카드를 펼치는 중이에요. 잠시만 기다려주세요.');
+    if (phase !== 'ready') {
+      setSelectionNotice(phase === 'stacked' || phase === 'complete' ? '먼저 카드 셔플 및 선택을 눌러주세요.' : '카드를 펼치는 중이에요. 잠시만 기다려주세요.');
       return;
     }
     if (selectedCardIds.includes(cardId)) {
@@ -870,42 +884,72 @@ function TarotDeckGallery({ selectionLimit, selectedCardIds, onSelectionChange, 
       return;
     }
     onSelectionChange((current) => toggleTarotSelection(current, cardId, selectionLimit));
-    setSelectionNotice(`${selectedCardIds.length + 1}장을 선택했습니다.`);
+    const nextCount = selectedCardIds.length + 1;
+    setSelectionNotice(nextCount === selectionLimit ? '선택 완료. 잠시 후 카드가 리딩으로 이어져요.' : `${nextCount}장을 선택했습니다.`);
   };
+
+  const finishSelection = useCallback((): void => {
+    if (phase !== 'ready' || !canConfirm) return;
+    clearPendingTimers();
+    setPhase('collapsing');
+    setSelectionNotice('선택한 카드가 덱에서 나와 리딩을 준비하고 있어요…');
+    collapseTimer.current = window.setTimeout(() => {
+      setPhase('complete');
+      setSelectionNotice('리딩이 완성됐어요. 새 리딩을 시작할 수 있어요.');
+      onConfirm();
+    }, reducedMotion ? 0 : TAROT_DECK_COLLAPSE_MS);
+  }, [canConfirm, onConfirm, phase, reducedMotion]);
+
+  useEffect(() => {
+    if (phase !== 'ready' || !canConfirm) return undefined;
+    autoConfirmTimer.current = window.setTimeout(finishSelection, reducedMotion ? 0 : TAROT_SELECTION_PAUSE_MS);
+    return () => {
+      if (autoConfirmTimer.current !== undefined) window.clearTimeout(autoConfirmTimer.current);
+      autoConfirmTimer.current = undefined;
+    };
+  }, [canConfirm, finishSelection, phase, reducedMotion]);
 
   const resetDeck = (): void => {
+    clearPendingTimers();
+    onStartSelection();
     onSelectionChange([]);
-    setFilter('all');
     setAnimationKey((key) => key + 1);
-    setSelectionNotice('카드를 다시 준비하고 있어요…');
+    setPhase('stacked');
+    setSelectionNotice('셔플 버튼을 누르면 카드가 리본처럼 펼쳐져요.');
   };
 
+  const selectedCount = phase === 'ready' || phase === 'collapsing' ? selectedCardIds.length : 0;
+  const selectionComplete = phase === 'ready' && canConfirm;
+  const launchLabel = phase === 'complete' ? '새 카드 셔플 및 선택' : '카드 셔플 및 선택';
+
   return <SectionCard className="tarot-deck-gallery">
-    <div className="section-title-row"><div><span className="card-kicker">AI DECK INDEX · 78 NODES</span><h2>78장의 카드가 펼쳐집니다</h2></div><span className="small-note">{cards.length} / {TAROT_CARD_COUNT} loaded</span></div>
-    <p className="tarot-deck-intro">카드 뒷면만 보이는 덱에서 마음이 가는 카드를 골라보세요. 개인 리딩은 {selectionLimit}장, 두 사람 궁합은 3장을 선택할 수 있습니다.</p>
-    <div className="tarot-deck-selection-head"><strong>{selectedCardIds.length} / {selectionLimit}장 선택</strong><span>{canConfirm ? '선택 완료' : `${selectionLimit}장을 골라주세요`}</span></div>
-    <div className="tarot-deck-filters" role="tablist" aria-label="타로 덱 필터">{filters.map((item) => <button type="button" key={item.key} className={filter === item.key ? 'selected' : ''} role="tab" aria-selected={filter === item.key} onClick={() => setFilter(item.key)}>{item.label}</button>)}</div>
-    <div className={`tarot-deck-stage ${isSpreadReady ? 'is-spread-ready' : 'is-preparing'}`} aria-busy={!isSpreadReady}>
+    <div className="section-title-row"><div><span className="card-kicker">AI DECK INDEX · 78 NODES</span><h2>78장의 카드가 펼쳐집니다</h2></div><span className="small-note">{TAROT_CARD_COUNT} / {TAROT_CARD_COUNT} loaded</span></div>
+    <p className="tarot-deck-intro">카드 뒷면만 보이는 덱에서 마음이 가는 카드를 골라보세요. 개인 리딩은 {selectionLimit}장, 두 사람 궁합은 3장을 선택합니다.</p>
+    <div className="tarot-deck-launch"><div><strong>{phase === 'stacked' ? '리본 스프레드를 시작하세요' : phase === 'complete' ? '다음 리딩을 준비하세요' : '카드의 흐름을 따라가세요'}</strong><span>{phase === 'stacked' || phase === 'complete' ? '셔플하면 78장이 반원으로 펼쳐집니다.' : '선택이 끝나면 카드가 접히며 앞면이 공개됩니다.'}</span></div><Button onClick={startShuffle} disabled={phase === 'spreading' || phase === 'collapsing'}>{phase === 'spreading' ? '카드를 펼치는 중…' : launchLabel} <span>✧</span></Button></div>
+    <div className="tarot-deck-selection-head"><strong>{selectedCount} / {selectionLimit}장 선택</strong><span>{phase === 'complete' ? '리딩 완료' : selectionComplete ? '선택 완료' : `${selectionLimit}장을 골라주세요`}</span></div>
+    <div className={`tarot-deck-stage is-${phase}`} aria-busy={phase === 'spreading' || phase === 'collapsing'}>
       <div className="tarot-deck-stack" aria-hidden="true"><span /><span /><span /><strong>✦</strong></div>
-      <div key={`${filter}-${animationKey}-${selectionLimit}`} className="tarot-deck-grid" aria-label={`선택 가능한 타로 카드 ${TAROT_CARD_COUNT}장`}>
-        {cards.map((card, index) => <TarotDeckTile key={card.id} card={card} index={index} selected={selectedCardIds.includes(card.id)} disabled={!isSpreadReady} onToggle={toggleCard} />)}
+      <div key={`${animationKey}-${selectionLimit}`} className="tarot-deck-grid" aria-label={`선택 가능한 타로 카드 ${TAROT_CARD_COUNT}장`}>
+        {TAROT_CARDS.map((card, index) => <TarotDeckTile key={card.id} card={card} index={index} selected={phase === 'ready' && selectedCardIds.includes(card.id)} disabled={phase !== 'ready'} onToggle={toggleCard} />)}
       </div>
+      {phase === 'stacked' && <div className="tarot-deck-overlay" aria-hidden="true"><span>✦</span><strong>셔플로 카드 열기</strong><small>78 CARDS · FACE DOWN</small></div>}
     </div>
-    <div className="tarot-deck-selection-status" role="status" aria-live="polite"><span className="tarot-deck-ready-indicator" aria-hidden="true" />{selectionNotice || '카드를 누르면 선택하거나 해제할 수 있습니다.'}</div>
-    <div className="tarot-deck-selection-actions"><Button secondary onClick={resetDeck}>↺ 선택 초기화</Button><Button onClick={onConfirm} disabled={!isSpreadReady || !canConfirm}>선택한 {selectionLimit}장으로 리딩</Button></div>
+    <div className="tarot-deck-selection-status" role="status" aria-live="polite"><span className="tarot-deck-ready-indicator" aria-hidden="true" />{selectionNotice}</div>
+    <div className="tarot-deck-selection-actions"><Button secondary onClick={resetDeck} disabled={phase === 'spreading' || phase === 'collapsing'}>↺ 다시 섞기</Button><Button onClick={finishSelection} disabled={phase !== 'ready' || !canConfirm}>선택한 {selectionLimit}장 공개하기</Button></div>
   </SectionCard>;
 }
 
 function TarotDeckTile({ card, index, selected, disabled, onToggle }: { card: TarotCard; index: number; selected: boolean; disabled: boolean; onToggle: (cardId: string) => void }): ReactElement {
   const cardIndex = tarotCardIndex(card);
-  const normalizedColumn = (index % 13) / 12 - .5;
+  const normalizedPosition = index / (TAROT_CARD_COUNT - 1) - .5;
   const style = {
     ...tarotCardStyle(cardIndex),
     '--deck-delay': `${index * TAROT_DECK_STAGGER_MS}ms`,
-    '--fan-rotate': `${normalizedColumn * 5.5}deg`,
-    '--fan-y': `${Math.abs(normalizedColumn) * 16 + Math.floor(index / 13) * 1.5}px`,
+    '--ribbon-x': `${normalizedPosition * 49}%`,
+    '--ribbon-y': `${Math.pow(Math.abs(normalizedPosition), 1.7) * 42 - 22}%`,
+    '--ribbon-rotate': `${normalizedPosition * 46}deg`,
   } as CSSProperties;
-  return <button type="button" className={`tarot-deck-tile tarot-deck-${card.arcana.toLowerCase()}${selected ? ' selected' : ''}`} style={style} aria-label={`타로 카드 ${cardIndex + 1}번 카드 뒷면`} aria-pressed={selected} disabled={disabled} onClick={() => onToggle(card.id)}>
+  return <button type="button" className={`tarot-deck-tile tarot-deck-${card.arcana.toLowerCase()}${selected ? ' selected' : ''}`} style={style} aria-label={`타로 카드 ${cardIndex + 1}번 카드 뒷면${selected ? ', 선택됨' : ''}`} aria-pressed={selected} disabled={disabled} onClick={() => onToggle(card.id)}>
     <span className="tarot-card-back" aria-hidden="true"><i /><i /><i /><strong>✦</strong><small>NEURAL ARCANA</small><em>{String(cardIndex + 1).padStart(2, '0')}</em></span>
     <span className="tarot-deck-select-state">{selected ? '선택됨' : disabled ? '준비 중' : '카드 선택'}</span>
   </button>;
@@ -1023,7 +1067,7 @@ function TarotDetailPage({ navigate }: { navigate: Navigate }): ReactElement {
     <div className="detail-header"><h1>{section === 'final-interpretation' ? '이번 리딩의 전체 흐름' : selected?.card.name ?? '선택한 카드'}</h1><p>{reading.categoryLabel} 주제에 맞춰 카드의 위치와 방향을 읽고, 오늘 해볼 수 있는 행동으로 연결합니다.</p></div>
     {section === 'final-interpretation' ? <div className="tarot-detail-grid">
       <SectionCard className="tarot-detail-summary"><span className="detail-label">전체 흐름</span><h2>{reading.summary}</h2><div className="tarot-detail-cards">{reading.cards.map((item) => <div key={`${item.card.id}-${item.position}`}><strong>{item.card.name}</strong><span>{item.position} · {item.reversed ? '역방향' : '정방향'}</span><p>{item.interpretation}</p></div>)}</div></SectionCard>
-      <SectionCard className="tarot-detail-application"><span className="detail-label">리딩을 생활로 옮기기</span><h2>카드의 단어를 행동으로 바꾸기</h2><ol className="detail-step-list"><li><strong>한 단어 고르기</strong><span>오늘 가장 오래 남는 키워드 하나를 고릅니다.</span></li><li><strong>장면 연결하기</strong><span>그 단어가 필요한 일·관계·결정의 장면을 찾습니다.</span></li><li><strong>작게 실행하기</strong><span>확인 가능한 행동 하나로 바꾸고 하루 뒤 돌아봅니다.</span></li></ol></SectionCard>
+      <SectionCard className="tarot-detail-application"><span className="detail-label">앞으로 할 일</span><h2>카드의 단어를 행동으로 바꾸기</h2><ol className="detail-step-list"><li><strong>한 단어 고르기</strong><span>오늘 가장 오래 남는 키워드 하나를 고릅니다.</span></li><li><strong>장면 연결하기</strong><span>그 단어가 필요한 일·관계·결정의 장면을 찾습니다.</span></li><li><strong>작게 실행하기</strong><span>확인 가능한 행동 하나로 바꾸고 하루 뒤 돌아봅니다.</span></li></ol></SectionCard>
       <SectionCard className="tarot-detail-application"><span className="detail-label">다시 질문하기</span><h2>다음 질문으로 남길 문장</h2><p>“이 흐름을 바꾸기 위해 내가 오늘 확인할 수 있는 사실은 무엇인가?”</p><p>타로는 결론을 대신하기보다, 내가 놓친 감정과 선택지를 다시 바라보는 장치로 사용하세요.</p></SectionCard>
     </div> : selected ? <div className="tarot-detail-grid">
       <SectionCard className="tarot-detail-card"><img src={tarotAssetUrl(selected.card.id)} alt="" aria-hidden="true" /><div><span className="detail-label">{selected.position} · {reading.categoryLabel}</span><h2>{selected.card.name}</h2><strong>{selected.reversed ? '역방향으로 읽기' : '정방향으로 읽기'}</strong><p>{selected.interpretation}</p></div></SectionCard>
