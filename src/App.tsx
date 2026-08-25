@@ -319,7 +319,7 @@ function GuideCharacter({ kind, active = true, onAction, onDetail, messageTitle,
   const suppressClick = useRef(false);
   const copy = GUIDE_COPY[kind];
   const bubbleTitle = messageTitle ?? copy.title;
-  const bubbleMessage = selectedTarget ? GUIDE_DETAIL_QUESTION : message ?? INITIAL_GUIDE_MESSAGE;
+  const bubbleMessage = selectedTarget ? kind === 'tarot' ? '선택한 카드들의 조합과 전체 흐름을 살펴볼까요?' : GUIDE_DETAIL_QUESTION : message ?? INITIAL_GUIDE_MESSAGE;
 
   const updatePosition = (next: GuidePosition): void => {
     latestPosition.current = next;
@@ -402,7 +402,7 @@ function GuideCharacter({ kind, active = true, onAction, onDetail, messageTitle,
         <span className="guide-label">{copy.label}</span>
         <strong>{bubbleTitle}</strong>
         <p>{bubbleMessage}</p>
-        {selectedTarget && onDetail ? <button className="guide-action" type="button" onClick={() => onDetail(selectedTarget)}>상세설명</button> : onAction && <button className="guide-action" type="button" onClick={onAction}>{actionLabel ?? '다음 정보 보기 →'}</button>}
+        {selectedTarget && onDetail && kind !== 'tarot' ? <button className="guide-action" type="button" onClick={() => onDetail(selectedTarget)}>상세설명</button> : onAction && <button className="guide-action" type="button" onClick={onAction}>{actionLabel ?? '다음 정보 보기 →'}</button>}
         <button className="guide-hide" type="button" onClick={hide}>× 가이드 숨기기</button>
       </div>}
     </aside>
