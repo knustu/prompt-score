@@ -595,7 +595,6 @@ function SajuPage({ navigate, notify }: { navigate: Navigate; notify: Notify }):
           <p>사주의 원리를 현대적인 화면으로 정리합니다. 오행의 균형과 시기의 흐름을 차분히 살펴보세요.</p>
           <div className="saju-hero-tags"><span>음양오행</span><span>사주팔자</span><span>대운·세운</span></div>
         </div>
-        <img className="saju-hero-image" src="/images/saju-hanok-courtyard-v2.png" alt="달빛이 비치는 한옥 마당" />
       </section>
       <PageIntro title="사주를 구조적으로 읽어볼까요?" description="출생 정보와 원하는 주제를 바탕으로 오행의 흐름, 시기, 해석을 차분히 살펴봅니다."><div className="privacy-pill warm"><span>☼</span> 입력은 이 브라우저에만 저장됩니다</div></PageIntro>
       <GuideCharacter kind="saju" phase={result ? (showMore ? 'more' : 'result') : 'input'} onAction={result && !showMore ? () => setShowMore(true) : undefined} onDetail={(target) => navigate(target.detail)} />
@@ -762,7 +761,6 @@ const tarotReadingFromPayload = (payload: TarotSharePayload): TarotReading => pa
 function TarotPortalHero({ mode }: { mode: 'single' | 'compatibility' }): ReactElement {
   return <section className="tarot-portal-hero" aria-label="AI 타로 아르카나 안내">
     <div><span className="tarot-hero-kicker">NEURAL ARCANA · 78 NODES</span><h2>별과 데이터 사이,<br /><em>한 장의 신호</em></h2><p>{mode === 'compatibility' ? '두 사람의 에너지가 어떤 카드 프로토콜로 만나는지 살펴봅니다.' : '전통 상징을 AI 시스템의 언어로 각색해 오늘의 행동으로 번역해보세요.'}</p></div>
-    <img className="tarot-hero-image" src="/images/tarot-mystic-room-v2.png" alt="달빛과 촛불이 놓인 타로 리딩 테이블" />
   </section>;
 }
 

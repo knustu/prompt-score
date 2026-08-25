@@ -1614,3 +1614,35 @@ label, .saju-form label, .tarot-controls label { color: #b7c5c7 !important; }
   .saju-page .saju-hero-image,
   .tarot-page .tarot-hero-image { min-height: 220px; max-height: 280px; }
 }
+
+/* Use the supplied artwork as the full-page atmosphere for Saju and Tarot. */
+.app-shell:has(.saju-page),
+.app-shell:has(.saju-detail-page) {
+  background: #06111b url('/images/saju-page-background-v3.png') center / cover fixed no-repeat !important;
+}
+.app-shell:has(.tarot-page),
+.app-shell:has(.tarot-detail-page) {
+  background: #050912 url('/images/tarot-page-background-v3.png') center / cover fixed no-repeat !important;
+}
+.saju-page .saju-moon-hero,
+.tarot-page .tarot-portal-hero {
+  grid-template-columns: 1fr;
+  min-height: 280px;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+.saju-page .saju-hero-image,
+.tarot-page .tarot-hero-image { display: none !important; }
+
+@media (max-width: 620px) {
+  .app-shell:has(.saju-page),
+  .app-shell:has(.saju-detail-page),
+  .app-shell:has(.tarot-page),
+  .app-shell:has(.tarot-detail-page) {
+    background-attachment: scroll !important;
+    background-position: 68% top !important;
+  }
+  .saju-page .saju-moon-hero,
+  .tarot-page .tarot-portal-hero { min-height: 240px; }
+}
