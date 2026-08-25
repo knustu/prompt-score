@@ -1505,6 +1505,7 @@ label, .saju-form label, .tarot-controls label { color: #b7c5c7 !important; }
 .tarot-page .tarot-deck-tile:focus-visible { outline-color: #f3d79c; outline-offset: 4px; }
 .tarot-page .tarot-deck-tile.selected { border-color: #f3d79c !important; box-shadow: 0 0 0 2px rgba(226, 184, 109, .28), 0 16px 28px rgba(0, 0, 0, .34) !important; transform: translateY(-4px); }
 .tarot-page .tarot-deck-tile .tarot-card-art { position: static !important; inset: auto !important; display: block; width: 100%; height: auto; aspect-ratio: 2 / 3; object-fit: cover; opacity: 1 !important; mix-blend-mode: normal !important; }
+.tarot-page .tarot-deck-hud, .tarot-page .tarot-deck-core { display: none !important; }
 .tarot-page .tarot-deck-copy { display: grid; gap: 4px; padding: 11px 10px 12px; }
 .tarot-page .tarot-deck-tile strong { min-height: 30px; color: #f3d79c !important; font-size: 11px; line-height: 1.4; }
 .tarot-page .tarot-deck-tile small { min-height: 28px; margin: 0; color: #aebcbe !important; font: 700 8px 'DM Sans', 'Noto Sans KR', sans-serif; letter-spacing: .05em; line-height: 1.35; }
